@@ -12,6 +12,7 @@ RoxygenNote: 7.3.2
 Imports:
     data.table,
     mgcv,
+    ordgam,
     Matrix,
     CppMatrix
 Remotes:

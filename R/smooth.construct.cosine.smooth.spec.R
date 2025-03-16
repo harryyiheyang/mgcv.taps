@@ -1,5 +1,6 @@
-#' Construct a Cosine Basis Smooth Term
+#' @title Construct a Cosine Basis Smooth Term
 #'
+#' @description
 #' This function constructs a smooth term using a cosine basis expansion, where the covariate `x` is first
 #' mapped to `[0,1]` using its empirical cumulative distribution function (`ecdf`). The cosine basis functions
 #' are then defined as:
@@ -10,6 +11,21 @@
 #' higher-order basis functions are penalized with an exponent `delta`. The penalty is applied as:
 #' \deqn{ s_k = (k-1)^delta, \quad k > m }
 #' ensuring that higher-order terms shrink more strongly with increasing `k`.
+#'
+#' The function constructs a smooth term using a cosine basis expansion, similar to the Fourier series but
+#' without sine terms. The covariate `x` is transformed using its empirical cumulative distribution function
+#' (`ecdf(x)`) to ensure uniform spacing. The resulting basis functions provide a flexible and smooth representation
+#' of periodic or oscillatory effects.
+#'
+#' The first `m` basis functions form the null space and are unpenalized, while higher-order components
+#' are penalized using a diagonal penalty matrix with entries `(k-1)^delta` for `k > m`, ensuring
+#' increasing smoothness constraints on higher-frequency components. `m` and `delta` can be specified by users through `s(..,m=c(m,delta),...)`.
+#'
+#' The final smooth term object contains the design matrix (`X`), penalty matrix (`S`), rank, null space dimension,
+#' and degrees of freedom, ensuring compatibility with `mgcv`.
+#'
+#' @usage
+#' \method{smooth.construct}{cosine.smooth.spec}(object, data, knots)
 #'
 #' @param object A smooth specification object created by `s()`, containing user-defined smoothing parameters.
 #' @param data A data frame containing the covariate for the smooth term.
@@ -25,16 +41,6 @@
 #'   \item `delta`: The exponent controlling penalty strength.
 #' }
 #'
-#' @details
-#' This function constructs a smooth term using a cosine basis expansion, similar to the Fourier series but
-#' without sine terms. The covariate `x` is transformed using its empirical cumulative distribution function
-#' (`ecdf(x)`) to ensure uniform spacing. The resulting basis functions provide a flexible and smooth representation
-#' of periodic or oscillatory effects.
-#'
-#' The first `m` basis functions form the null space and are unpenalized, while higher-order components
-#' are penalized using a diagonal penalty matrix with entries `(k-1)^delta` for `k > m`, ensuring
-#' increasing smoothness constraints on higher-frequency components. `m` and `delta` can be specified by users through `s(..,m=c(m,delta),...)`.
-#'
 #' @importFrom mgcv smooth.construct Predict.matrix
 #'
 #' @examples
@@ -47,7 +53,6 @@
 #' }
 #'
 #' @export
-
 smooth.construct.cosine.smooth.spec<-function(object,data,knots) {
   ## a truncated power spline constructor method function
   ## object$p.order = null space dimension

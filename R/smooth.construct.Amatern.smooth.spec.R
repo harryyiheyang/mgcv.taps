@@ -1,5 +1,6 @@
-#' Construct a Matern-based Smooth Term with Fixed and Random Effects
+#' @title Construct a Matern-based Smooth Term with Fixed and Random Effects
 #'
+#' @description
 #' This function constructs a smooth term based on Matern splines, incorporating both fixed and random effects.
 #' The fixed effects structure is user-defined via `getA`, which is stored in `xt$getA`, while the second
 #' element of `xt` (i.e., `xt$para`) contains the corresponding parameters for `getA`. Users can customize
@@ -11,6 +12,18 @@
 #' the Matern spline (which is always based on quantiles of `x`), and the scale parameter used for the
 #' Matern spline construction. The resulting Matern spline undergoes PCA, extracting the top principal
 #' components, ensuring that the number of retained PCs is `k - fixed effect dimension`.
+#'
+#' This function constructs a smooth term using a Matern spline approach. The fixed effect structure is
+#' defined through `getA(x, para)`, which is extracted from `xt$getA` and takes two inputs: `x` (data) and
+#' `para` (a list of parameters). The number of knots (`nk`) is determined based on quantiles of `x`. The
+#' smoothing term undergoes PCA, extracting the top components such that the number of retained principal
+#' components equals `k - fixed effect dimension`.
+#'
+#' The function returns a smooth term object containing the final design matrix, penalty matrix, and
+#' additional metadata such as the selected Matern quantiles and scale parameters.
+#'
+#' @usage
+#' \method{smooth.construct}{Amatern.smooth.spec}(object, data, knots)
 #'
 #' @param object A smooth specification object created by `s()`, containing user-defined smoothing parameters.
 #' @param data A data frame containing the covariate for the smooth term.
@@ -28,16 +41,9 @@
 #'   \item `lambda_matern`: The scale parameter for the Matern spline.
 #' }
 #'
-#' @details
-#' This function constructs a smooth term using a Matern spline approach. The fixed effect structure is
-#' defined through `getA(x, para)`, which is extracted from `xt$getA` and takes two inputs: `x` (data) and
-#' `para` (a list of parameters). The number of knots (`nk`) is determined based on quantiles of `x`. The
-#' smoothing term undergoes PCA, extracting the top components such that the number of retained principal
-#' components equals `k - fixed effect dimension`.
-#'
+#' @importFrom mgcv smooth.construct Predict.matrix
 #' @importFrom CppMatrix matrixMultiply matrixEigen
 #' @importFrom Matrix bdiag
-#' @importFrom mgcv smooth.construct Predict.matrix
 #'
 #' @examples
 #' \dontrun{
@@ -49,7 +55,6 @@
 #' }
 #'
 #' @export
-
 smooth.construct.Amatern.smooth.spec <- function(object, data, knots) {
 
 nk <- object$p.order[1]

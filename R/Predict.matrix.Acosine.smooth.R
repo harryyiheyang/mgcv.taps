@@ -1,3 +1,4 @@
+#' @usage \method{Predict.matrix}{Acosine.smooth}(object, data)
 #' @importFrom CppMatrix matrixMultiply
 #' @importFrom Matrix bdiag
 #' @importFrom mgcv smooth.construct Predict.matrix

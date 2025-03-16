@@ -32,20 +32,21 @@ The fixed effects structure is user-defined via `getA`, which is stored in `xt$g
 element of `xt` (i.e., `xt$para`) contains the corresponding parameters for `getA`. Users can customize
 the fixed effect structure, but the associated parameters must be provided as a list, ensuring that the
 function only has `x` (data) and `para` as inputs.
-}
-\details{
+
 The final smooth term dimension (`k`) includes both the fixed effect (null space) dimension and the
 random effect dimension. The `m` parameter allows two values: the number of knots (`nk`) for generating
 the Matern spline (which is always based on quantiles of `x`), and the scale parameter used for the
 Matern spline construction. The resulting Matern spline undergoes PCA, extracting the top principal
 components, ensuring that the number of retained PCs is `k - fixed effect dimension`.
 
-
 This function constructs a smooth term using a Matern spline approach. The fixed effect structure is
 defined through `getA(x, para)`, which is extracted from `xt$getA` and takes two inputs: `x` (data) and
 `para` (a list of parameters). The number of knots (`nk`) is determined based on quantiles of `x`. The
 smoothing term undergoes PCA, extracting the top components such that the number of retained principal
 components equals `k - fixed effect dimension`.
+
+The function returns a smooth term object containing the final design matrix, penalty matrix, and
+additional metadata such as the selected Matern quantiles and scale parameters.
 }
 \examples{
 \dontrun{

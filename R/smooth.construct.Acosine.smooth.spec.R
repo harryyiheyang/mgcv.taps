@@ -1,5 +1,6 @@
-#' Construct a Cosine Basis Smooth Term with Fixed and Random Effects
+#' @title Construct a Cosine Basis Smooth Term with Fixed and Random Effects
 #'
+#' @description
 #' This function constructs a smooth term using cosine basis functions (Fourier series representation)
 #' with support in `[0,1]`. The transformation to `[0,1]` is achieved by mapping `x` through its
 #' empirical cumulative distribution function (`ecdf`). The smooth term includes both fixed effects,
@@ -11,6 +12,18 @@
 #' The final smooth term dimension (`k`) consists of both the fixed effect (null space) dimension and the
 #' random effect (penalized) dimension. The cosine basis expansion generates `k - m + 1` basis functions,
 #' where `m` is the null space dimension (fixed effect dimension).
+#'
+#' This function constructs a smooth term using cosine basis functions derived from the Fourier series with
+#' support in `[0,1]`. The covariate `x` is first mapped to `[0,1]` using its empirical cumulative distribution
+#' function (`ecdf`). The cosine basis functions are defined as:
+#' \deqn{ B_k(x) = \cos(k \pi x) }
+#' for `k = 1, ..., (k - m + 1)`, where `m` is the null space dimension determined by the fixed effects.
+#'
+#' The penalty matrix is constructed using a diagonal weight matrix based on the sequence `k^delta`, where
+#' `delta` is specified by the user through `s(...,m=delta,...)`.
+#'
+#' @usage
+#' \method{smooth.construct}{Acosine.smooth.spec}(object, data, knots)
 #'
 #' @param object A smooth specification object created by `s()`, containing user-defined smoothing parameters.
 #' @param data A data frame containing the covariate for the smooth term.
@@ -27,19 +40,9 @@
 #'   \item `delta`: The power exponent controlling basis function scaling.
 #' }
 #'
-#' @details
-#' This function constructs a smooth term using cosine basis functions derived from the Fourier series with
-#' support in `[0,1]`. The covariate `x` is first mapped to `[0,1]` using its empirical cumulative distribution
-#' function (`ecdf`). The cosine basis functions are defined as:
-#' \deqn{ B_k(x) = \cos(k \pi x) }
-#' for `k = 1, ..., (k - m + 1)`, where `m` is the null space dimension determined by the fixed effects.
-#'
-#' The penalty matrix is constructed using a diagonal weight matrix based on the sequence `k^delta`, where
-#' `delta` is specified by the user through `s(...,m=delta,...)`.
-#'
+#' @importFrom mgcv smooth.construct Predict.matrix
 #' @importFrom CppMatrix matrixMultiply
 #' @importFrom Matrix bdiag
-#' @importFrom mgcv smooth.construct Predict.matrix
 #'
 #' @examples
 #' \dontrun{
@@ -51,7 +54,6 @@
 #' }
 #'
 #' @export
-
 smooth.construct.Acosine.smooth.spec <- function(object, data, knots) {
   delta <- object$p.order[1]
   x <- data[[object$term]]

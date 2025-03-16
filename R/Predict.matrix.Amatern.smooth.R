@@ -1,4 +1,4 @@
-
+#' @usage \method{Predict.matrix}{Amatern.smooth}(object, data)
 #' @importFrom mgcv smooth.construct Predict.matrix
 #' @importFrom CppMatrix matrixMultiply matrixListProduct
 #' @importFrom Matrix bdiag

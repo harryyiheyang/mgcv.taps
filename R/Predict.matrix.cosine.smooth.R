@@ -1,3 +1,4 @@
+#' @usage \method{Predict.matrix}{cosine.smooth}(object, data)
 #' @importFrom mgcv smooth.construct Predict.matrix
 #' @export
 Predict.matrix.cosine.smooth<-function(object,data) {

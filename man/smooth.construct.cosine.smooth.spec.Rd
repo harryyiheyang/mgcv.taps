@@ -30,15 +30,13 @@ mapped to `[0,1]` using its empirical cumulative distribution function (`ecdf`).
 are then defined as:
 \deqn{ B_k(x) = \cos((k-1) \pi x) }
 for `k = 1, ..., k`, where `k` is the basis dimension (`bs.dim`).
-}
-\details{
+
 The smooth term includes both an unpenalized null space of dimension `m` and a penalized component where
 higher-order basis functions are penalized with an exponent `delta`. The penalty is applied as:
 \deqn{ s_k = (k-1)^delta, \quad k > m }
 ensuring that higher-order terms shrink more strongly with increasing `k`.
 
-
-This function constructs a smooth term using a cosine basis expansion, similar to the Fourier series but
+The function constructs a smooth term using a cosine basis expansion, similar to the Fourier series but
 without sine terms. The covariate `x` is transformed using its empirical cumulative distribution function
 (`ecdf(x)`) to ensure uniform spacing. The resulting basis functions provide a flexible and smooth representation
 of periodic or oscillatory effects.
@@ -46,6 +44,9 @@ of periodic or oscillatory effects.
 The first `m` basis functions form the null space and are unpenalized, while higher-order components
 are penalized using a diagonal penalty matrix with entries `(k-1)^delta` for `k > m`, ensuring
 increasing smoothness constraints on higher-frequency components. `m` and `delta` can be specified by users through `s(..,m=c(m,delta),...)`.
+
+The final smooth term object contains the design matrix (`X`), penalty matrix (`S`), rank, null space dimension,
+and degrees of freedom, ensuring compatibility with `mgcv`.
 }
 \examples{
 \dontrun{

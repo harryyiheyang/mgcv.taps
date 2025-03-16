@@ -12,6 +12,7 @@
 #'
 #' @importFrom mgcv vcov.gam
 #' @importFrom data.table data.table rbindlist
+#' @importFrom ordgam testStat
 #' @importFrom stats pchisq
 #'
 #' @examples
@@ -24,45 +25,93 @@
 mgcv_maps_wald <- function(fit) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
-beta <- fit$coefficient
-Vb <- vcov.gam(fit)
+# Extract coefficients and covariance matrix from the fitted model
+beta <- fit$coefficients
+Vb   <- vcov.gam(fit)
+
+# Generate the global design matrix (lpmatrix)
+X <- predict(fit, fit$model, type = "lpmatrix")
+
+# Residual degrees of freedom (global)
+rdf <- fit$df.residual
+
+# Smooth terms list
 smooth_terms <- fit$smooth
 
-results_list <- vector("list", length(smooth_terms))
+# Prepare a list to store results for each smooth term
+out_list <- vector("list", length(smooth_terms))
 
 for (i in seq_along(smooth_terms)) {
 s <- smooth_terms[[i]]
 term_name <- s$label
-indices <- s$first.para:s$last.para
-null_dim <- s$null.space.dim
+indices   <- s$first.para:s$last.para
+null_dim  <- s$null.space.dim
 
-# Split indices
+# Split null (unpenalized) vs. penalized indices
 if (null_dim > 0) {
-null_indices <- indices[1:null_dim]
-smooth_indices <- indices[(null_dim+1):length(indices)]
+null_indices   <- indices[1:null_dim]
+smooth_indices <- indices[(null_dim + 1):length(indices)]
 } else {
-null_indices <- integer(0)
+null_indices   <- integer(0)
 smooth_indices <- indices
 }
 
-# Wald test for null space
-null_results <- mgcv_wald(beta, Vb, null_indices)
-smooth_results <- mgcv_wald(beta, Vb, smooth_indices)
+# 1) Wald test for the unpenalized (fixed) component
+fix_stat <- fix_df <- fix_p <- NA
+if (length(null_indices) > 0) {
+est_null <- beta[null_indices]
+V_null   <- Vb[null_indices, null_indices, drop = FALSE]
+tmp_fixed <- mgcv_wald(est_null, V_null, df_fixed = TRUE)
 
-results_list[[i]] <- data.table(
-`Term` = term_name,
-`Fix df` = null_results[2],
-`Fix chisq` = null_results[1],
-`Fix p` = null_results[3],
-`Random df` = smooth_results[2],
-`Random chisq` = smooth_results[1],
-`Random p` = smooth_results[3]
+fix_stat <- tmp_fixed["statistic"]
+fix_df   <- tmp_fixed["df"]
+fix_p    <- tmp_fixed["p.value"]
+} else {
+fix_stat <- NA
+fix_df   <- 0
+fix_p    <- NA
+}
+
+# 2) Wald-like (or pseudo-likelihood ratio) test for the penalized (smooth) component
+sm_stat <- sm_df <- sm_p <- NA
+if (length(smooth_indices) > 0) {
+p_smooth <- beta[smooth_indices]
+V_smooth <- Vb[smooth_indices, smooth_indices, drop = FALSE]
+
+# Extract the relevant columns from X
+Xt <- X[, smooth_indices, drop = FALSE]
+
+# Effective degrees of freedom for this smooth
+edf_for_this_smooth <- sum(fit$edf[smooth_indices])
+if (!is.null(fit$edf1)) {
+  edf_for_this_smooth <- sum(fit$edf1[smooth_indices])
+}
+null_dim <- s$null.space.dim
+edf_penalized <- edf_for_this_smooth - null_dim
+the_rank <- min(ncol(Xt), edf_penalized)
+
+# The rank used in testStat is usually min(ncol(Xt), edf_for_this_smooth)
+the_rank <- min(ncol(Xt), edf_for_this_smooth)
+
+tmp_smooth <- testStat_wrapper(p_smooth, Xt, V_smooth, rank = the_rank, rdf = rdf)
+sm_stat <- tmp_smooth["statistic"]
+sm_df   <- tmp_smooth["df"]
+sm_p    <- tmp_smooth["p.value"]
+}
+
+# Combine the results for this smooth term
+out_list[[i]] <- data.table(
+Term          = term_name,
+`Fix.df`      = fix_df,
+`Fix.chisq`   = fix_stat,
+`Fix.p`       = fix_p,
+`Smooth.df`   = sm_df,
+`Smooth.chisq`= sm_stat,
+`Smooth.p`    = sm_p
 )
 }
 
-results_df <- do.call(rbind, results_list)
-rownames(results_df) <- NULL
-return(results_df)
+# Bind the list into a single data.table
+out_dt <- rbindlist(out_list)
+return(out_dt)
 }
-
-

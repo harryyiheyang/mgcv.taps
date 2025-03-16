@@ -25,5 +25,8 @@ piecewise_linearity <- function(x, para){
   for(i in 1:p){
     G[,i] <- softthres(x, knot[i])
   }
-  return(cbind(1, x, G))
+  basis_matrix <- cbind(1, x, G)
+  colnames(basis_matrix) <- c("Intercept", "x", paste0("Smooth_",  seq_len(p)))
+
+  return(basis_matrix)
 }

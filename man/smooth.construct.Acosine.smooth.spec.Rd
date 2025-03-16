@@ -30,15 +30,13 @@ This function constructs a smooth term using cosine basis functions (Fourier ser
 with support in `[0,1]`. The transformation to `[0,1]` is achieved by mapping `x` through its
 empirical cumulative distribution function (`ecdf`). The smooth term includes both fixed effects,
 defined by a user-specified function `getA`, and random effects modeled using cosine basis functions.
-}
-\details{
+
 The fixed effects structure is defined via `xt$getA`, which must be a function taking `x` (data)
 and `para` (a list of parameters) as inputs. The user-specified parameters must be stored in `xt$para`.
 
 The final smooth term dimension (`k`) consists of both the fixed effect (null space) dimension and the
 random effect (penalized) dimension. The cosine basis expansion generates `k - m + 1` basis functions,
 where `m` is the null space dimension (fixed effect dimension).
-
 
 This function constructs a smooth term using cosine basis functions derived from the Fourier series with
 support in `[0,1]`. The covariate `x` is first mapped to `[0,1]` using its empirical cumulative distribution
