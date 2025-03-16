@@ -8,7 +8,7 @@
 #'
 #' The smooth term includes both an unpenalized null space of dimension `m` and a penalized component where
 #' higher-order basis functions are penalized with an exponent `delta`. The penalty is applied as:
-#' \deqn{ s_k = (k-1)^\delta, \quad k > m }
+#' \deqn{ s_k = (k-1)^delta, \quad k > m }
 #' ensuring that higher-order terms shrink more strongly with increasing `k`.
 #'
 #' @param object A smooth specification object created by `s()`, containing user-defined smoothing parameters.
@@ -32,8 +32,8 @@
 #' of periodic or oscillatory effects.
 #'
 #' The first `m` basis functions form the null space and are unpenalized, while higher-order components
-#' are penalized using a diagonal penalty matrix with entries `(k-1)^\delta` for `k > m`, ensuring
-#' increasing smoothness constraints on higher-frequency components.
+#' are penalized using a diagonal penalty matrix with entries `(k-1)^delta` for `k > m`, ensuring
+#' increasing smoothness constraints on higher-frequency components. `m` and `delta` can be specified by users through `s(..,m=c(m,delta),...)`.
 #'
 #' @importFrom mgcv smooth.construct Predict.matrix
 #'
@@ -42,7 +42,7 @@
 #' library(mgcv)
 #' set.seed(42)
 #' dat <- data.frame(x = runif(100), y = rnorm(100))
-#' fit <- gam(y ~ s(x, bs="cosine", k=10, m=2, xt=list()),
+#' fit <- gam(y ~ s(x, bs="cosine", k=10, m=c(2,4), xt=list()),
 #'            data=dat, method="REML")
 #' }
 #'

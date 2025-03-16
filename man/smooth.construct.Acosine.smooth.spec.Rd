@@ -47,14 +47,14 @@ function (`ecdf`). The cosine basis functions are defined as:
 for `k = 1, ..., (k - m + 1)`, where `m` is the null space dimension determined by the fixed effects.
 
 The penalty matrix is constructed using a diagonal weight matrix based on the sequence `k^delta`, where
-`delta` is specified by the user.
+`delta` is specified by the user through `s(...,m=delta,...)`.
 }
 \examples{
 \dontrun{
 library(mgcv)
 set.seed(42)
 dat <- data.frame(x = runif(100), y = rnorm(100))
-fit <- gam(y ~ s(x, bs="Acosine", k=12, xt=list(getA=function(x, para) cbind(1, x), para=list())),
+fit <- gam(y ~ s(x, bs="Acosine", k=12, m = 6, xt=list(getA=function(x, para) cbind(1, x), para=list())),
            data=dat, method="REML")
 }
 
