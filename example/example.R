@@ -18,8 +18,15 @@ G[,i]=softthres(x,knot[i])
 return(cbind(1,x,G))
 }
 
-b<-gam(y~s(x0,bs="mixmatern",k=10,m=c(100,10),xt=list(getA=linear_changepoint,para=0.5))+s(x1,bs="mixmatern",k=10,m=c(100,10),xt=list(getA=linear_changepoint,para=0.4))
-       +s(x2,bs="mixmatern",k=10,m=c(100,10),xt=list(getA=linear_changepoint,para=c(0.24,0.5,0.7)))+s(x3,bs="mixmatern",k=10,m=c(100,10)),data=dat,method="REML",family="binomial",select=T)
+b<-bam(y~s(x0,bs="mix_matern",k=10,m=c(100,10),xt=list(getA=linear_changepoint,para=0.5))+s(x1,bs="mix_matern",k=10,m=c(100,10),xt=list(getA=linear_changepoint,para=0.4))
+       +s(x2,bs="mix_matern",k=10,m=c(100,10),xt=list(getA=linear_changepoint,para=c(0.24,0.5,0.7)))+s(x3,bs="mix_matern",k=10,m=c(100,10)),data=dat,method="REML",family="binomial",select=F)
 plot(b,pages=1)
 
 summary(b)
+
+b1<-bam(y~s(x0,bs="cr")+s(x1,bs="cr")
+       +s(x2,bs="cr")+s(x3,bs="cr"),data=dat,method="REML",family="binomial",select=F)
+plot(b1,pages=1)
+summary(b1)
+
+anova(b1,b)

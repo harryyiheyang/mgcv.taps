@@ -40,8 +40,8 @@ smooth.construct.mix_cosine.smooth.spec <- function(object, data, knots) {
   # Compute matrix B
   funi <- ecdf(x)
   xi <- funi(x)
-  B <- outer(xi, 1:object$bs.dim, function(x, k) cos(k * pi * x))
-  svec <- (1:object$bs.dim)^delta
+  B <- outer(xi, 1:(object$bs.dim-m), function(x, k) cos(k * pi * x))
+  svec <- (1:(object$bs.dim-m))^delta
 
   # Combine matrices A and B
   C <- cbind(A, B)
@@ -60,7 +60,7 @@ smooth.construct.mix_cosine.smooth.spec <- function(object, data, knots) {
   if (!object$fixed) {
     object$S[[1]] <- (Omega + t(Omega)) / 2
   }
-  object$rank <- object$bs.dim
+  object$rank <- object$bs.dim - m
   object$null.space.dim <- m
   object$null.project <- Q
   object$df <- ncol(X)
@@ -91,7 +91,7 @@ Predict.matrix.mix_cosine.smooth <- function(object, data) {
 
   funi <- ecdf(x_new)
   xi <- funi(x_new)
-  B <- outer(xi, 1:object$bs.dim, function(x, k) cos(k * pi * x))
+  B <- outer(xi, 1:(object$bs.dim-m), function(x, k) cos(k * pi * x))
 
   # Combine A and B for prediction
   C <- cbind(A_new, B)
