@@ -1,7 +1,55 @@
+#' Construct a Matern-based Smooth Term with Fixed and Random Effects
+#'
+#' This function constructs a smooth term based on Matern splines, incorporating both fixed and random effects.
+#' The fixed effects structure is user-defined via `getA`, which is stored in `xt$getA`, while the second
+#' element of `xt` (i.e., `xt$para`) contains the corresponding parameters for `getA`. Users can customize
+#' the fixed effect structure, but the associated parameters must be provided as a list, ensuring that the
+#' function only has `x` (data) and `para` as inputs.
+#'
+#' The final smooth term dimension (`k`) includes both the fixed effect (null space) dimension and the
+#' random effect dimension. The `m` parameter allows two values: the number of knots (`nk`) for generating
+#' the Matern spline (which is always based on quantiles of `x`), and the scale parameter used for the
+#' Matern spline construction. The resulting Matern spline undergoes PCA, extracting the top principal
+#' components, ensuring that the number of retained PCs is `k - fixed effect dimension`.
+#'
+#' @param object A smooth specification object created by `s()`, containing user-defined smoothing parameters.
+#' @param data A data frame containing the covariate for the smooth term.
+#' @param knots A list of knots supplied by the user or automatically generated from `x`.
+#'
+#' @return A smooth term object of class `"Amatern.smooth"`, `"mgcv.smooth"`, containing:
+#' \itemize{
+#'   \item `X`: The final design matrix combining fixed and random effect components.
+#'   \item `S`: The smoothing penalty matrix.
+#'   \item `rank`: The effective rank of the penalty matrix.
+#'   \item `null.space.dim`: The dimension of the fixed effect (null space).
+#'   \item `null.project`: Projection matrix onto the null space.
+#'   \item `smoothfun`: The function used to generate the Matern basis.
+#'   \item `kappa_matern`: The selected quantiles used as knots for Matern splines.
+#'   \item `lambda_matern`: The scale parameter for the Matern spline.
+#' }
+#'
+#' @details
+#' This function constructs a smooth term using a Matern spline approach. The fixed effect structure is
+#' defined through `getA(x, para)`, which is extracted from `xt$getA` and takes two inputs: `x` (data) and
+#' `para` (a list of parameters). The number of knots (`nk`) is determined based on quantiles of `x`. The
+#' smoothing term undergoes PCA, extracting the top components such that the number of retained principal
+#' components equals `k - fixed effect dimension`.
+#'
 #' @importFrom CppMatrix matrixMultiply matrixEigen
 #' @importFrom Matrix bdiag
 #' @importFrom mgcv smooth.construct Predict.matrix
+#'
+#' @examples
+#' \dontrun{
+#' library(mgcv)
+#' set.seed(42)
+#' dat <- data.frame(x = runif(100), y = rnorm(100))
+#' fit <- gam(y ~ s(x, bs="Amatern", k=12, xt=list(getA=function(x, para) cbind(1, x), para=list(scale=2))),
+#'            data=dat, method="REML")
+#' }
+#'
 #' @export
+
 smooth.construct.Amatern.smooth.spec <- function(object, data, knots) {
 
 nk <- object$p.order[1]

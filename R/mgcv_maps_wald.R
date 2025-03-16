@@ -17,11 +17,11 @@
 #' @examples
 #' \dontrun{
 #' fit <- gam(y ~ s(x0) + s(x1), data=dat, method=\"REML\")
-#' mgcv_smooth_wald(fit)
+#' mgcv_maps_wald(fit)
 #' }
 #'
 #' @export
-mgcv_smooth_wald <- function(fit) {
+mgcv_maps_wald <- function(fit) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
 beta <- fit$coefficient
