@@ -3,7 +3,6 @@
 ## Semiparametric regression CUP. (No advantage to actually
 ## using this, since mgcv can happily handle non-identity
 ## penalties.)
-
 #' @export
 smooth.construct.cosine.smooth.spec<-function(object,data,knots) {
   ## a truncated power spline constructor method function
@@ -38,7 +37,7 @@ smooth.construct.cosine.smooth.spec<-function(object,data,knots) {
 
   object$df<-ncol(object$X)     # maximum DoF (if unconstrained)
 
-  class(object)<-"cosine.smooth"  # Give object a class
+  class(object)<-c("cosine.smooth", "mgcv.smooth")
   object
 }
 

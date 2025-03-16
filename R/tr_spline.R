@@ -38,7 +38,7 @@ smooth.construct.tr.smooth.spec<-function(object,data,knots) {
 
   object$df<-ncol(object$X)     # maximum DoF (if unconstrained)
 
-  class(object)<-"tr.smooth"  # Give object a class
+  class(object)<-c("tr.smooth", "mgcv.smooth")
   object
 }
 #' @export
