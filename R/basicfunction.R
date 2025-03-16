@@ -13,16 +13,6 @@ n=length(x)
 quantile(x[2:(n-1)],seq(0,1,length=nk+2))[2:(nk+1)]
 }
 
-wald_test <- function(beta, V, L) {
-est <- L %*% beta
-V <- L %*% Vb %*% t(L)
-stat <- t(est) %*% solve(V) %*% est
-df <- qr(L)$rank
-p_val <- pchisq(stat, df=df, lower.tail=FALSE)
-
-list(statistic = as.numeric(stat), df=df, p.value=p_val)
-}
-
 mgcv_wald <- function(beta, Vb, indices) {
 if (length(indices) == 0) return(c(NA, NA, NA))
 
