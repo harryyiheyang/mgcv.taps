@@ -20,7 +20,7 @@ Predict.matrix.Acosine.smooth <- function(object, data) {
 
   funi <- ecdf(x_new)
   xi <- funi(x_new)
-  B <- outer(xi, 1:(object$bs.dim-m), function(x, k) cos(k * pi * x))
+  B <- outer(xi, 1:(object$bs.dim-m+1), function(x, k) cos(k * pi * x))
 
   # Combine A and B for prediction
   C <- cbind(A_new, B)

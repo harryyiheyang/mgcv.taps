@@ -9,7 +9,7 @@ smooth.construct.Acosine.smooth.spec <- function(object, data, knots) {
 
   # Obtain or define default getA
   if (is.null(object$xt$getA)) {
-    getA <- function(x,para) as.matrix(x)  # Default to using x itself
+    getA <- function(x,para) cbind(1,x)  # Default to using x itself
     para = 0
     A <- getA(x)
   } else {
@@ -41,8 +41,8 @@ smooth.construct.Acosine.smooth.spec <- function(object, data, knots) {
   # Compute matrix B
   funi <- ecdf(x)
   xi <- funi(x)
-  B <- outer(xi, 1:(object$bs.dim-m), function(x, k) cos(k * pi * x))
-  svec <- (1:(object$bs.dim-m))^delta
+  B <- outer(xi, 1:(object$bs.dim-m+1), function(x, k) cos(k * pi * x))
+  svec <- (1:(object$bs.dim-m+1))^delta
 
   # Combine matrices A and B
   C <- cbind(A, B)
@@ -61,7 +61,7 @@ smooth.construct.Acosine.smooth.spec <- function(object, data, knots) {
   if (!object$fixed) {
     object$S[[1]] <- (Omega + t(Omega)) / 2
   }
-  object$rank <- object$bs.dim - m
+  object$rank <- object$bs.dim - m + 1
   object$null.space.dim <- m
   object$null.project <- Q
   object$df <- ncol(X)

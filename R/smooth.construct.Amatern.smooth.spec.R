@@ -37,9 +37,10 @@ if (object$bs.dim < 0) object$bs.dim <- 10
 if (object$bs.dim <= m) stop("The smoothing dimension 'k' is too small given the fixed effects.")
 
 object$m <- m
-if (is.na(nk)) nk <- min(round(n/3),100)
+if (is.na(nk)) nk <- min(round(n/3),300)
 object$nk <- nk
-if (is.na(lambda_matern)) lambda_matern <- 5*sd(x)
+if(nk<object$bs.dim) stop("The number of knots 'm' is too small.")
+if (is.na(lambda_matern)) lambda_matern <- 10*sd(x)
 object$lambda_matern <- lambda_matern
 
 kappa_matern=kappa_quantile(x,nk)
@@ -56,7 +57,7 @@ fitqr <- qr(G)
 Q <- qr.Q(fitqr, complete = TRUE)[, (m + 1):nrow(G), drop = FALSE]
 B = matrixMultiply(C,Q)
 fiteigen=matrixEigen(matrixMultiply(t(B),B))
-v=fiteigen$vectors[,1:(object$bs.dim-m)]
+v=fiteigen$vectors[,1:(object$bs.dim-m+1)]
 B=matrixMultiply(B,v)
 X=cbind(A,B)
 Omega <- matrixListProduct(list(t(v),t(Q),Omega,Q,v))
@@ -68,7 +69,7 @@ object$v = v
 if (!object$fixed) {
 object$S[[1]] <- (Omega + t(Omega)) / 2
 }
-object$rank <- object$bs.dim - m
+object$rank <- object$bs.dim - m + 1
 object$null.space.dim <- m
 object$null.project <- matrixMultiply(Q,v)
 object$df <- ncol(X)
