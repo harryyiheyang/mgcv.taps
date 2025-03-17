@@ -101,13 +101,13 @@ sm_p    <- tmp_smooth["p.value"]
 
 # Combine the results for this smooth term
 out_list[[i]] <- data.table(
-Term          = term_name,
-`Fix.df`      = fix_df,
-`Fix.chisq`   = fix_stat,
-`Fix.p`       = fix_p,
-`Smooth.df`   = sm_df,
-`Smooth.chisq`= sm_stat,
-`Smooth.p`    = sm_p
+term           = term_name,
+`fix.df`       = fix_df,
+`fix.chisq`    = fix_stat,
+`fix.pvalue`   = fix_p,
+`smooth.df`    = sm_df,
+`smooth.chisq` = sm_stat,
+`smooth.pvalue`= sm_p
 )
 }
 
