@@ -45,22 +45,33 @@ for (i in seq_along(smooth_terms)) {
 s <- smooth_terms[[i]]
 term_name <- s$label
 indices   <- s$first.para:s$last.para
-null_dim  <- s$null.space.dim
+reported_null_dim  <- s$null.space.dim  # The reported null space dimension
 
-# Split null (unpenalized) vs. penalized indices
-if (null_dim > 0) {
-null_indices   <- indices[1:null_dim]
-smooth_indices <- indices[(null_dim + 1):length(indices)]
-} else {
-null_indices   <- integer(0)
-smooth_indices <- indices
+# Dynamically determine null space from penalty matrix S
+S_matrix <- s$S[[1]]  # Extract first penalty matrix for the term
+
+# Identify rows/columns where S is completely zero (null space)
+zero_rows <- which(rowSums(abs(S_matrix)) == 0)
+zero_cols <- which(colSums(abs(S_matrix)) == 0)
+
+# Take intersection of zero rows and columns, then map back to indices
+detected_null_indices <- indices[intersect(zero_rows, zero_cols)]
+
+# Ensure consistency with reported null space
+if (length(detected_null_indices) != reported_null_dim) {
+warning(sprintf("Mismatch in null space detection for term '%s': S reports %d null dimensions, detected %d from S.",
+              term_name, reported_null_dim, length(detected_null_indices)))
+reported_null_dim <- length(detected_null_indices)  # Override with detected value
 }
+
+# Smooth indices: remove detected null indices from full set
+smooth_indices <- setdiff(indices, detected_null_indices)
 
 # 1) Wald test for the unpenalized (fixed) component
 fix_stat <- fix_df <- fix_p <- NA
-if (length(null_indices) > 0) {
-est_null <- beta[null_indices]
-V_null   <- Vb[null_indices, null_indices, drop = FALSE]
+if (length(detected_null_indices) > 0) {
+est_null <- beta[detected_null_indices]
+V_null   <- Vb[detected_null_indices, detected_null_indices, drop = FALSE]
 tmp_fixed <- mgcv_wald(est_null, V_null, df_fixed = TRUE)
 
 fix_stat <- tmp_fixed["statistic"]
@@ -82,16 +93,12 @@ V_smooth <- Vb[smooth_indices, smooth_indices, drop = FALSE]
 Xt <- X[, smooth_indices, drop = FALSE]
 
 # Effective degrees of freedom for this smooth
-edf_for_this_smooth <- sum(fit$edf[smooth_indices])
+edf_for_this_smooth <- sum(fit$edf[indices])
 if (!is.null(fit$edf1)) {
-  edf_for_this_smooth <- sum(fit$edf1[smooth_indices])
+edf_for_this_smooth <- sum(fit$edf1[indices])
 }
-null_dim <- s$null.space.dim
-edf_penalized <- edf_for_this_smooth - null_dim
+edf_penalized <- edf_for_this_smooth - reported_null_dim
 the_rank <- min(ncol(Xt), edf_penalized)
-
-# The rank used in testStat is usually min(ncol(Xt), edf_for_this_smooth)
-the_rank <- min(ncol(Xt), edf_for_this_smooth)
 
 tmp_smooth <- testStat_wrapper(p_smooth, Xt, V_smooth, rank = the_rank, rdf = rdf)
 sm_stat <- tmp_smooth["statistic"]
