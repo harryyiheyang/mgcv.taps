@@ -4,10 +4,12 @@
 \alias{mgcv_maps_wald}
 \title{Perform Wald Tests on mgcv Smooth Terms (Null and Penalized Components)}
 \usage{
-mgcv_maps_wald(fit)
+mgcv_maps_wald(fit, approx.method = "Gamma")
 }
 \arguments{
 \item{fit}{A fitted `gam` or `bam` model from the `mgcv` package.}
+
+\item{approx.method}{The approximation method when reference degree of freedom is less than 1. Choose 'Gamma' or 'Chisq'.}
 }
 \value{
 A `data.table` summarizing Wald statistics and p-values separately

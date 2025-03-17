@@ -6,6 +6,7 @@
 #' It returns a clear summary as a `data.table`.
 #'
 #' @param fit A fitted `gam` or `bam` model from the `mgcv` package.
+#' @param approx.method  The approximation method when reference degree of freedom is less than 1. Choose 'Gamma' or 'Chisq'.
 #'
 #' @return A `data.table` summarizing Wald statistics and p-values separately
 #'         for null (unpenalized) and penalized (smooth) components of each term.
@@ -22,7 +23,7 @@
 #' }
 #'
 #' @export
-mgcv_maps_wald <- function(fit) {
+mgcv_maps_wald <- function(fit,approx.method="Gamma") {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
 # Extract coefficients and covariance matrix from the fitted model
@@ -100,10 +101,18 @@ edf_for_this_smooth <- sum(fit$edf1[indices])
 edf_penalized <- edf_for_this_smooth - reported_null_dim
 the_rank <- min(ncol(Xt), edf_penalized)
 
+if(the_rank>=0.999999999){
 tmp_smooth <- testStat_wrapper(p_smooth, Xt, V_smooth, rank = the_rank, rdf = rdf)
 sm_stat <- tmp_smooth["statistic"]
 sm_df   <- tmp_smooth["df"]
 sm_p    <- tmp_smooth["p.value"]
+}else{
+tmp_smooth <- low_rank_test(beta = p_smooth, X = Xt, V = V_smooth,approx.method=approx.method )
+sm_stat <- tmp_smooth["statistic"]
+sm_df   <- tmp_smooth["df"]
+sm_p    <- tmp_smooth["p.value"]
+}
+test_method=ifelse(the_rank>=0.999999999,"Wood 2013","1df Approx.")
 }
 
 # Combine the results for this smooth term
@@ -114,7 +123,8 @@ term           = term_name,
 `fix.pvalue`   = fix_p,
 `smooth.df`    = sm_df,
 `smooth.chisq` = sm_stat,
-`smooth.pvalue`= sm_p
+`smooth.pvalue`= sm_p,
+`smooth.approx`=test_method
 )
 }
 
