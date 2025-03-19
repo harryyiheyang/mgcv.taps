@@ -4,7 +4,7 @@
 \alias{polynomial}
 \title{Generate a polynomial basis matrix}
 \usage{
-polynomial(x, order)
+polynomial(x, para)
 }
 \arguments{
 \item{x}{A numeric vector representing the covariate values at which to evaluate the polynomial basis.}

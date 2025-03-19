@@ -6,8 +6,6 @@
 #' It returns a clear summary as a `data.table`.
 #'
 #' @param fit A fitted `gam` or `bam` model from the `mgcv` package.
-#' @param approx.method  The approximation method when reference degree of freedom is less than 1. Choose 'Gamma' or 'Chisq'.
-#'
 #' @return A `data.table` summarizing Wald statistics and p-values separately
 #'         for null (unpenalized) and penalized (smooth) components of each term.
 #'
@@ -23,7 +21,7 @@
 #' }
 #'
 #' @export
-mgcv_maps_wald <- function(fit,approx.method="Gamma") {
+mgcv_maps_wald <- function(fit) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
 # Extract coefficients and covariance matrix from the fitted model
@@ -107,7 +105,7 @@ sm_stat <- tmp_smooth["statistic"]
 sm_df   <- tmp_smooth["df"]
 sm_p    <- tmp_smooth["p.value"]
 }else{
-tmp_smooth <- low_rank_test(beta = p_smooth, X = Xt, V = V_smooth,approx.method=approx.method )
+tmp_smooth <- low_rank_test(beta = p_smooth, X = Xt, V = V_smooth)
 sm_stat <- tmp_smooth["statistic"]
 sm_df   <- tmp_smooth["df"]
 sm_p    <- tmp_smooth["p.value"]

@@ -41,15 +41,12 @@ res <- testStat(p, Xt, V, rank = rank, type = 0, res.df = rdf)
 c(statistic = res$stat, df = res$rank, p.value = res$pval)
 }
 
-low_rank_test <- function(beta,X, V, approx.method = "Gamma") {
+low_rank_test <- function(beta,X, V) {
 qrx <- qr(X, tol = 0)
 R <- qr.R(qrx)
 V <- R %*% V[qrx$pivot, qrx$pivot, drop = FALSE] %*% t(R)
 V <- (V + t(V))/2
 beta = as.vector(R%*%beta[qrx$pivot])
-# Ensure valid method selection
-if (!approx.method %in% c("Gamma", "Chisq")) stop("Invalid approximation method. Choose 'Gamma' or 'Chisq'.")
-
 # Compute observed test statistic
 Q_obs <- sum(beta^2)
 
@@ -64,18 +61,6 @@ expected_Q <- tr_V
 var_Q <- 2 * tr_V2
 
 # Chi-square approximation
-if (approx.method == "Chisq") {
-  p_value <- pchisq(Q_obs / expected_Q, df = 1, lower.tail = FALSE)
+  p_value <- pchisq(Q_obs / expected_Q, df = 1, lower.tail = FALSE)/2
   return(list(statistic = Q_obs / expected_Q, df=1,p.value = p_value, method = "Appro. χ²"))
-}
-
-# Gamma approximation (default)
-k <- expected_Q^2 / var_Q
-theta <- var_Q / expected_Q
-p_value <- pgamma(Q_obs, shape = k, scale = theta, lower.tail = FALSE)
-
-return(list(statistic = Q_obs, p.value = p_value, df = paste0("shape:", round(k, digits = 2),
-                                                              " scale:", round(theta, digits = 2),
-                                                              " trQ:", formatC(expected_Q, format = "e", digits = 1)),
-            method = "Apprx. Gamma"))
 }

@@ -15,7 +15,8 @@
 #' polynomial(x, order = 3)
 #'
 #' @export
-polynomial <- function(x, order) {
+polynomial <- function(x, para) {
+order=para
 if (!is.numeric(x)) stop("x must be a numeric vector.")
 if (!is.numeric(order) || length(order) != 1 || order < 0 || order %% 1 != 0) {
 stop("order must be a non-negative integer.")
