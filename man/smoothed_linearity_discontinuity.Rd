@@ -24,12 +24,12 @@ This function constructs a design matrix for a regression discontinuity model wi
 incorporating a smoothed transition around each breakpoint instead of an abrupt jump.
 }
 \details{
-Instead of a sharp discontinuity, this function replaces the traditional jump indicator `I(x > ν)`
-with a **steep but continuous linear transition** in the neighborhood `[ν - c, ν + c]`. The smoothed function is:
+Instead of a sharp discontinuity, this function replaces the traditional jump indicator `I(x > v)`
+with a **steep but continuous linear transition** in the neighborhood `[v - c, v + c]`. The smoothed function is:
 \deqn{
 f(x) = 4x + \frac{2}{c} (x - v + c)_+ - \frac{2}{c} (x - v - c)_+
 }
-where `(x - ν + c)_+` and `(x - ν - c)_+` are hinge functions (ReLU functions).
+where `(x - v + c)_+` and `(x - v - c)_+` are hinge functions (ReLU functions).
 }
 \examples{
 x <- seq(0, 10, length.out=100)
