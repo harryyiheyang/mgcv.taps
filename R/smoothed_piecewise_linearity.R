@@ -14,7 +14,7 @@
 #'
 #' @details
 #' This function extends the standard piecewise linear basis by introducing a **quadratic smoothing** around each changepoint.
-#' The smoothing is achieved by approximating `(x - \nu)_+` with a quadratic spline in the interval `[ν - b, ν + b]`:
+#' The smoothing is achieved by approximating `(x - v)_+` with a quadratic spline in the interval `[ν - b, ν + b]`:
 #' \deqn{s(x, ν, b) = \frac{(x - ν + b)^2}{4b} 1_{[ν - b, ν + b]} + (x - ν) 1_{[x \geq ν + b]}}
 #' where `b` is the user-specified smoothing parameter.
 #'
