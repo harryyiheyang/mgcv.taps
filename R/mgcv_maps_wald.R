@@ -6,6 +6,8 @@
 #' It returns a clear summary as a `data.table`.
 #'
 #' @param fit A fitted `gam` or `bam` model from the `mgcv` package.
+#' @param test.component The index of smooth component to be tested.
+#' @param null.tol The tolerance of row norm to detect indices of null space. Default to 1e-10.
 #' @return A `data.table` summarizing Wald statistics and p-values separately
 #'         for null (unpenalized) and penalized (smooth) components of each term.
 #'
@@ -16,12 +18,12 @@
 #'
 #' @examples
 #' \dontrun{
-#' fit <- gam(y ~ s(x0) + s(x1), data=dat, method=\"REML\")
+#' fit <- gam(y ~ s(x0) + s(x1), data=dat, method="REML")
 #' mgcv_maps_wald(fit)
 #' }
 #'
 #' @export
-mgcv_maps_wald <- function(fit) {
+mgcv_maps_wald <- function(fit,test.component=1,null.tol=1e-10) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
 # Extract coefficients and covariance matrix from the fitted model
@@ -40,21 +42,24 @@ smooth_terms <- fit$smooth
 # Prepare a list to store results for each smooth term
 out_list <- vector("list", length(smooth_terms))
 
-for (i in seq_along(smooth_terms)) {
-s <- smooth_terms[[i]]
+s <- smooth_terms[[test.component]]
 term_name <- s$label
 indices   <- s$first.para:s$last.para
 reported_null_dim  <- s$null.space.dim  # The reported null space dimension
 
+if(reported_null_dim==0) stop("No null space detected. Using summary() for p-value of this component.")
 # Dynamically determine null space from penalty matrix S
 S_matrix <- s$S[[1]]  # Extract first penalty matrix for the term
 
-# Identify rows/columns where S is completely zero (null space)
-zero_rows <- which(rowSums(abs(S_matrix)) == 0)
-zero_cols <- which(colSums(abs(S_matrix)) == 0)
-
 # Take intersection of zero rows and columns, then map back to indices
-detected_null_indices <- indices[intersect(zero_rows, zero_cols)]
+if(is.null(s$getA)==0){
+detected_null_indices <- indices[1:reported_null_dim]
+detect_method="reported"
+}else{
+col_norms <- apply(S_matrix, 2, function(x) sqrt(sum(x^2)))
+detected_null_indices=which(col_norms<null.tol)
+detect_method="detected"
+}
 
 # Ensure consistency with reported null space
 if (length(detected_null_indices) != reported_null_dim) {
@@ -114,19 +119,17 @@ test_method=ifelse(the_rank>=0.999999999,"Wood 2013","1df Approx.")
 }
 
 # Combine the results for this smooth term
-out_list[[i]] <- data.table(
+out_list <- data.table(
 term           = term_name,
 `fix.df`       = fix_df,
 `fix.chisq`    = fix_stat,
 `fix.pvalue`   = fix_p,
+`fix.indices`  = detect_method,
 `smooth.df`    = sm_df,
 `smooth.chisq` = sm_stat,
 `smooth.pvalue`= sm_p,
 `smooth.approx`=test_method
 )
-}
 
-# Bind the list into a single data.table
-out_dt <- rbindlist(out_list)
-return(out_dt)
+return(out_list)
 }

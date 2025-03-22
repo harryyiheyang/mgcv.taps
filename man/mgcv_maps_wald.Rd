@@ -4,10 +4,14 @@
 \alias{mgcv_maps_wald}
 \title{Perform Wald Tests on mgcv Smooth Terms (Null and Penalized Components)}
 \usage{
-mgcv_maps_wald(fit)
+mgcv_maps_wald(fit, test.component = 1, null.tol = 1e-10)
 }
 \arguments{
 \item{fit}{A fitted `gam` or `bam` model from the `mgcv` package.}
+
+\item{test.component}{The index of smooth component to be tested.}
+
+\item{null.tol}{The tolerance of row norm to detect indices of null space. Default to 1e-10.}
 }
 \value{
 A `data.table` summarizing Wald statistics and p-values separately
@@ -21,7 +25,7 @@ It returns a clear summary as a `data.table`.
 }
 \examples{
 \dontrun{
-fit <- gam(y ~ s(x0) + s(x1), data=dat, method=\"REML\")
+fit <- gam(y ~ s(x0) + s(x1), data=dat, method="REML")
 mgcv_maps_wald(fit)
 }
 

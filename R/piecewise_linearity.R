@@ -14,7 +14,7 @@
 #'
 #' @export
 piecewise_linearity <- function(x, para){
-  softthres <- function(x,b){
+  soft_thresholding <- function(x,b){
     y <- x - b
     y[y < 0] <- 0
     return(y)
@@ -23,7 +23,7 @@ piecewise_linearity <- function(x, para){
   p <- length(knot)
   G <- matrix(0, length(x), p)
   for(i in 1:p){
-    G[,i] <- softthres(x, knot[i])
+    G[,i] <- soft_thresholding(x, knot[i])
   }
   basis_matrix <- cbind(1, x, G)
   colnames(basis_matrix) <- c("Intercept", "x", paste0("Smooth_",  seq_len(p)))

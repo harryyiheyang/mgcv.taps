@@ -17,7 +17,7 @@
 #' Instead of a sharp discontinuity, this function replaces the traditional jump indicator `I(x > ν)`
 #' with a **steep but continuous linear transition** in the neighborhood `[ν - c, ν + c]`. The smoothed function is:
 #' \deqn{
-#' f(x) = 4x + \frac{2}{c} (x - \nu + c)_+ - \frac{2}{c} (x - \nu - c)_+
+#' f(x) = 4x + \frac{2}{c} (x - v + c)_+ - \frac{2}{c} (x - v - c)_+
 #' }
 #' where `(x - ν + c)_+` and `(x - ν - c)_+` are hinge functions (ReLU functions).
 #'
