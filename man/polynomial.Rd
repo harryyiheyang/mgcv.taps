@@ -22,6 +22,6 @@ The resulting matrix includes columns for each power of `x` from 0 (intercept) t
 }
 \examples{
 x <- seq(-1, 1, length.out = 10)
-polynomial(x, order = 3)
+polynomial(x, para = 3)
 
 }

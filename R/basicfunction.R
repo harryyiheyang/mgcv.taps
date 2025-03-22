@@ -61,6 +61,45 @@ expected_Q <- tr_V
 var_Q <- 2 * tr_V2
 
 # Chi-square approximation
-  p_value <- pchisq(Q_obs / expected_Q, df = 1, lower.tail = FALSE)/2
-  return(list(statistic = Q_obs / expected_Q, df=1,p.value = p_value, method = "Appro. χ²"))
+p_value <- pchisq(Q_obs / expected_Q, df = 1, lower.tail = FALSE)/2
+return(list(statistic = Q_obs / expected_Q, df=1,p.value = p_value, method = "Appro. χ²"))
+}
+
+fit_beta_transform <- function(x, k = round(length(x)/4)) {
+# 1. Data preprocessing: Remove NA values and ensure x is a non-empty numeric vector
+x <- na.omit(x)
+if (is.null(k)) k = round(length(x)/4)
+if (k < 10) stop("Data length is insufficient for fitting. Please use uniform quantile.")
+
+# 2. Discretize data into k intervals and compute the median of each interval
+breaks <- quantile(x, probs = seq(0, 1, length.out = k + 1), na.rm = TRUE)
+breaks[1] <- breaks[1] - 1e-10  # Avoid boundary issues
+breaks[k + 1] <- breaks[k + 1] + 1e-10
+intervals <- cut(x, breaks = breaks, include.lowest = TRUE)
+medians <- tapply(x, intervals, median, na.rm = TRUE)
+
+# 3. Scale the medians to the [0,1] interval
+x_scaled <- (medians - min(medians)) / (max(medians) - min(medians))
+x_scaled <- pmax(pmin(x_scaled, 1 - 1e-10), 1e-10)  # Constrain within (0,1)
+
+# 4. Fit a Beta distribution using the method of moments
+mu <- mean(x_scaled)
+var <- var(x_scaled)
+alpha <- mu * (mu * (1 - mu) / var - 1)
+beta <- (1 - mu) * (mu * (1 - mu) / var - 1)
+
+if (alpha <= 0 || beta <= 0) {
+# If moment estimation fails, fall back to default parameters
+warning("Moment estimation failed, using default parameters alpha=1, beta=1")
+alpha <- 1
+beta <- 1
+}
+
+# 5. Return a transformation function: Map empirical quantiles to Beta distribution
+function(new_x) {
+# Compute empirical quantiles of the input data
+ecdf_x <- ecdf(x)(new_x)
+# Map to the quantiles of the fitted Beta distribution
+qbeta(ecdf_x, shape1 = alpha, shape2 = beta)
+}
 }

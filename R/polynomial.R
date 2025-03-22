@@ -12,7 +12,7 @@
 #'
 #' @examples
 #' x <- seq(-1, 1, length.out = 10)
-#' polynomial(x, order = 3)
+#' polynomial(x, para = 3)
 #'
 #' @export
 polynomial <- function(x, para) {

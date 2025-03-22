@@ -54,38 +54,48 @@
 #'
 #' @export
 smooth.construct.cosine.smooth.spec<-function(object,data,knots) {
-  ## a truncated power spline constructor method function
-  ## object$p.order = null space dimension
-  m <- object$p.order[1]
-  delta = object$p.order[2]
-  if (object$bs.dim<0) object$bs.dim <- 10 ## default
-  if (object$bs.dim<=1) stop("k too small for m")
-  if (is.na(m)) m <- 1
-  object$m=m
-  if (is.na(delta)) delta <- 4
-  object$delta=delta
-  x <- data[[object$term]]  ## the data
-  funi = ecdf(x)
-  xi = funi(x)
-  X<-matrix(0,length(x),object$bs.dim)
-  X[,1]=1
-  svec=c(1:object$bs.dim)*0
-  for (i in 2:object$bs.dim){
-  X[,i]<- cos((i-1)*pi*xi)
-  svec[i]=(i-1)^delta
-  }
-  svec[1:m]=0
-  object$X<-X # the finished model matrix
-  if (!object$fixed) # create the penalty matrix
-  {
-  object$S[[1]]<-diag(svec)
-  }
-  object$rank<-object$bs.dim-m  # penalty rank
-  object$null.space.dim <- m  # dim. of unpenalized space
-  ## store "tr" specific stuff ...
+## a truncated power spline constructor method function
+## object$p.order = null space dimension
+m <- object$p.order[1]
+delta = object$p.order[2]
+transform_method=object$xt$method
+if(is.null(transform_method)){
+object$xt$method="empirical quantile"
+}
+if (object$bs.dim<0) object$bs.dim <- 10 ## default
+if (object$bs.dim<=1) stop("k too small for m")
+if (is.na(m)) m <- 1
+object$m=m
+if (is.na(delta)) delta <- 4
+object$delta=delta
+x <- data[[object$term]]  ## the data
+if(object$xt$method=="empirical quantile"){
+funi = ecdf(x)
+xi = funi(x)
+}else{
+funi = fit_beta_transform(x,k=object$xt$cluster.size)
+xi = funi(x)
+}
+object$transform_fun=funi
+X<-matrix(0,length(x),object$bs.dim)
+X[,1]=1
+svec=c(1:object$bs.dim)*0
+for (i in 2:object$bs.dim){
+X[,i]<- cos((i-1)*pi*xi)
+svec[i]=(i-1)^delta
+}
+svec[1:m]=0
+object$X<-X # the finished model matrix
+if (!object$fixed) # create the penalty matrix
+{
+object$S[[1]]<-diag(svec)
+}
+object$rank<-object$bs.dim-m  # penalty rank
+object$null.space.dim <- m  # dim. of unpenalized space
+## store "tr" specific stuff ...
 
-  object$df<-ncol(object$X)     # maximum DoF (if unconstrained)
+object$df<-ncol(object$X)     # maximum DoF (if unconstrained)
 
-  class(object)<-c("cosine.smooth", "mgcv.smooth")
-  object
+class(object)<-c("cosine.smooth", "mgcv.smooth")
+object
 }

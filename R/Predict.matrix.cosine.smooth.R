@@ -4,7 +4,7 @@
 Predict.matrix.cosine.smooth<-function(object,data) {
   ## prediction method function for the `tr' smooth class
   x <- data[[object$term]]
-  funi = ecdf(x)
+  funi <- object$transform_fun
   xi = funi(x)
   X<-matrix(0,length(x),object$bs.dim)
   X[,1]=1
