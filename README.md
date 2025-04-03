@@ -121,6 +121,7 @@ concentrations, using structured smooth terms.
 ``` r
 library(mgcv)
 library(mgcv.taps)
+library(ggplot2)
 data("Huai_River")
 head(Huai_River)
 ```
@@ -134,11 +135,18 @@ head(Huai_River)
     ## 6      130227          1  94.78634  7.101388
 
 ``` r
-plot(Huai_River$dist_huai, Huai_River$pm10,
-   main = "PM10 Concentration vs. Distance from Huai River",
-   xlab = "Distance from Huai River",
-   ylab = "PM10 Concentration",
-   pch = 16, col = "black")
+ggplot(Huai_River, aes(x = dist_huai, y = pm10)) +
+  geom_point(color = "black", size = 3) +
+  labs(
+    title = "PM10 Concentration vs. Distance from Huai River",
+    x = "Distance from Huai River",
+    y = "PM10 Concentration"
+  ) +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    panel.background = element_rect(fill = "#f4f4f4"),
+    plot.background = element_rect(fill = "#f4f4f4")
+  )
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
@@ -181,9 +189,10 @@ theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
       panel.background = element_rect(fill = "#f4f4f4"))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- --> We conduct a
-score test and Wald test to assess whether a more flexible model is
-necessary.
+![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+We conduct a score test and Wald test to assess whether a more flexible
+model is necessary.
 
 ``` r
 taps_score_test(fit1)[, 1:4]
@@ -211,7 +220,8 @@ We then fit a model using the parametric form `A %*% alpha` to estimate
 the causal effect directly.
 
 ``` r
-fit2 = gam(pm10 ~ linearity_discontinuity(dist_huai, para = 0), data = Huai_River)
+X=linearity_discontinuity(Huai_River$dist_huai, para = 0)
+fit2 = gam(pm10 ~ X, data = Huai_River)
 summary(fit2)
 ```
 
@@ -220,21 +230,15 @@ summary(fit2)
     ## Link function: identity 
     ## 
     ## Formula:
-    ## pm10 ~ linearity_discontinuity(dist_huai, para = 0)
+    ## pm10 ~ X
     ## 
     ## Parametric coefficients:
-    ##                                                       Estimate Std. Error
-    ## (Intercept)                                            52.8631     2.8094
-    ## linearity_discontinuity(dist_huai, para = 0)Intercept  52.8631     2.8094
-    ## linearity_discontinuity(dist_huai, para = 0)x           4.3624     0.9961
-    ## linearity_discontinuity(dist_huai, para = 0)0_jump     32.1029     8.1151
-    ## linearity_discontinuity(dist_huai, para = 0)0_slope    -6.8941     1.2655
-    ##                                                       t value Pr(>|t|)    
-    ## (Intercept)                                            18.817  < 2e-16 ***
-    ## linearity_discontinuity(dist_huai, para = 0)Intercept  18.817  < 2e-16 ***
-    ## linearity_discontinuity(dist_huai, para = 0)x           4.379 2.22e-05 ***
-    ## linearity_discontinuity(dist_huai, para = 0)0_jump      3.956 0.000117 ***
-    ## linearity_discontinuity(dist_huai, para = 0)0_slope    -5.448 2.04e-07 ***
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)  52.8631     2.8094  18.817  < 2e-16 ***
+    ## XIntercept   52.8631     2.8094  18.817  < 2e-16 ***
+    ## Xx            4.3624     0.9961   4.379 2.22e-05 ***
+    ## X0_jump      32.1029     8.1151   3.956 0.000117 ***
+    ## X0_slope     -6.8941     1.2655  -5.448 2.04e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
@@ -247,21 +251,21 @@ The estimated jump at `dist_huai = 0` is 32.10. This estimate can also
 be extracted from `fit1`:
 
 ``` r
-data.frame(fit1$coefficients, summary(fit1)$se)
+data.frame(fit1$coefficients, summary(fit1)$se, summary(fit1)$p.pv)
 ```
 
-    ##                 fit1.coefficients summary.fit1..se
-    ## (Intercept)            103.094354        2.2955199
-    ## s(dist_huai).1           4.013882        0.4819359
-    ## s(dist_huai).2          31.803411        8.5662862
-    ## s(dist_huai).3          -8.747310        4.5973245
-    ## s(dist_huai).4          -1.530367       54.3997500
-    ## s(dist_huai).5           1.764593       55.9657462
-    ## s(dist_huai).6           3.805944      202.1374169
-    ## s(dist_huai).7          -8.436630      295.6149652
-    ## s(dist_huai).8          -0.420288      538.6830653
-    ## s(dist_huai).9         -10.681127      799.9922269
-    ## s(dist_huai).10          9.771230     1263.4589140
+    ##                 fit1.coefficients summary.fit1..se summary.fit1..p.pv
+    ## (Intercept)            103.094354        2.2955199        7.02785e-89
+    ## s(dist_huai).1           4.013882        0.4819359        7.02785e-89
+    ## s(dist_huai).2          31.803411        8.5662862        7.02785e-89
+    ## s(dist_huai).3          -8.747310        4.5973245        7.02785e-89
+    ## s(dist_huai).4          -1.530367       54.3997500        7.02785e-89
+    ## s(dist_huai).5           1.764593       55.9657462        7.02785e-89
+    ## s(dist_huai).6           3.805944      202.1374169        7.02785e-89
+    ## s(dist_huai).7          -8.436630      295.6149652        7.02785e-89
+    ## s(dist_huai).8          -0.420288      538.6830653        7.02785e-89
+    ## s(dist_huai).9         -10.681127      799.9922269        7.02785e-89
+    ## s(dist_huai).10          9.771230     1263.4589140        7.02785e-89
 
 Here, the second coefficient of `s(dist_huai)` corresponds to the jump.
 Under the mixed-effect structure, the estimated jump is 31.08.
@@ -291,25 +295,27 @@ theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
       panel.background = element_rect(fill = "#f4f4f4"))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- --> The estimated
-causal effect (jump at the cutoff) from the median regression is 28.48:
+![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+The estimated causal effect (jump at the cutoff) from the median
+regression is 28.48:
 
 ``` r
-data.frame(fit3$coefficients, summary(fit3)$se)
+data.frame(fit3$coefficients, summary(fit3)$se, summary(fit3)$p.pv)
 ```
 
-    ##                 fit3.coefficients summary.fit3..se
-    ## (Intercept)            102.770869     1.733398e+00
-    ## s(dist_huai).1           4.175361     3.168971e-01
-    ## s(dist_huai).2          28.483770     6.351863e+00
-    ## s(dist_huai).3         -10.233436     3.119935e+00
-    ## s(dist_huai).4         -92.858838     4.469603e+02
-    ## s(dist_huai).5         283.488887     4.765601e+02
-    ## s(dist_huai).6         358.758222     1.805697e+03
-    ## s(dist_huai).7       -1067.645814     2.615167e+03
-    ## s(dist_huai).8         944.214478     4.731396e+03
-    ## s(dist_huai).9       -1526.630388     7.057253e+03
-    ## s(dist_huai).10        161.759727     1.134724e+04
+    ##                 fit3.coefficients summary.fit3..se summary.fit3..p.pv
+    ## (Intercept)            102.770869     1.733398e+00                  0
+    ## s(dist_huai).1           4.175361     3.168971e-01                  0
+    ## s(dist_huai).2          28.483770     6.351863e+00                  0
+    ## s(dist_huai).3         -10.233436     3.119935e+00                  0
+    ## s(dist_huai).4         -92.858838     4.469603e+02                  0
+    ## s(dist_huai).5         283.488887     4.765601e+02                  0
+    ## s(dist_huai).6         358.758222     1.805697e+03                  0
+    ## s(dist_huai).7       -1067.645814     2.615167e+03                  0
+    ## s(dist_huai).8         944.214478     4.731396e+03                  0
+    ## s(dist_huai).9       -1526.630388     7.057253e+03                  0
+    ## s(dist_huai).10        161.759727     1.134724e+04                  0
 
 This is evidence that median GAM can be used to make the fit more
 robust. Currently, score tests are only supported for exponential family

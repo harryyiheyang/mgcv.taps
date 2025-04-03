@@ -105,14 +105,22 @@ This example demonstrates how to use the `mgcv.taps` package to study causal eff
 ```{r,message=F,warning=F}
 library(mgcv)
 library(mgcv.taps)
+library(ggplot2)
 data("Huai_River")
 head(Huai_River)
 
-plot(Huai_River$dist_huai, Huai_River$pm10,
-   main = "PM10 Concentration vs. Distance from Huai River",
-   xlab = "Distance from Huai River",
-   ylab = "PM10 Concentration",
-   pch = 16, col = "black")
+ggplot(Huai_River, aes(x = dist_huai, y = pm10)) +
+  geom_point(color = "black", size = 3) +
+  labs(
+    title = "PM10 Concentration vs. Distance from Huai River",
+    x = "Distance from Huai River",
+    y = "PM10 Concentration"
+  ) +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    panel.background = element_rect(fill = "#f4f4f4"),
+    plot.background = element_rect(fill = "#f4f4f4")
+  )
 ```
 
 We first fit a standard GAM to estimate the non-linear effect of distance from the Huai River on PM10 concentration.
@@ -146,6 +154,7 @@ ggtitle("Mixed-linear effect of Distance from Huai River fitted by mgcv.taps") +
 theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
       panel.background = element_rect(fill = "#f4f4f4"))
 ```
+
 We conduct a score test and Wald test to assess whether a more flexible model is necessary.
 ```{r}
 taps_score_test(fit1)[, 1:4]
@@ -155,12 +164,13 @@ The results support the null hypothesis that the linearity discontinuity at `dis
 
 We then fit a model using the parametric form `A %*% alpha` to estimate the causal effect directly.
 ```{r}
-fit2 = gam(pm10 ~ linearity_discontinuity(dist_huai, para = 0), data = Huai_River)
+X=linearity_discontinuity(Huai_River$dist_huai, para = 0)
+fit2 = gam(pm10 ~ X, data = Huai_River)
 summary(fit2)
 ```
 The estimated jump at `dist_huai = 0` is 32.10. This estimate can also be extracted from `fit1`:
 ```{r}
-data.frame(fit1$coefficients, summary(fit1)$se)
+data.frame(fit1$coefficients, summary(fit1)$se, summary(fit1)$p.pv)
 ```
 Here, the second coefficient of `s(dist_huai)` corresponds to the jump. Under the mixed-effect structure, the estimated jump is 31.08.
 
@@ -180,9 +190,10 @@ ggtitle("Mixed-linear effect of Distance from Huai River fitted by mgcv.taps and
 theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
       panel.background = element_rect(fill = "#f4f4f4"))
 ```
+
 The estimated causal effect (jump at the cutoff) from the median regression is 28.48:
 ```{r}
-data.frame(fit3$coefficients, summary(fit3)$se)
+data.frame(fit3$coefficients, summary(fit3)$se, summary(fit3)$p.pv)
 ```
 This is evidence that median GAM can be used to make the fit more robust. Currently, score tests are only supported for exponential family models. Therefore, we use the Wald test for inference:
 
