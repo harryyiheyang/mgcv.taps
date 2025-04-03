@@ -106,6 +106,9 @@ This example demonstrates how to use the `mgcv.taps` package to study causal eff
 library(mgcv)
 library(mgcv.taps)
 library(ggplot2)
+library(mgcViz)
+library(qgam)
+library(dplyr)
 data("Huai_River")
 head(Huai_River)
 
@@ -125,7 +128,6 @@ ggplot(Huai_River, aes(x = dist_huai, y = pm10)) +
 
 We first fit a standard GAM to estimate the non-linear effect of distance from the Huai River on PM10 concentration.
 ```{r,message=F,warning=F}
-library(mgcViz)
 fit0 = gam(pm10 ~ s(dist_huai, bs = "gp"), data = Huai_River, method = "REML")
 b0 = getViz(fit0)
 plot(sm(b0, 1)) +
@@ -170,13 +172,12 @@ summary(fit2)
 ```
 The estimated jump at `dist_huai = 0` is 32.10. This estimate can also be extracted from `fit1`:
 ```{r}
-data.frame(fit1$coefficients, summary(fit1)$se, summary(fit1)$p.pv)
+data.frame(Estimate=fit1$coefficients,SE=summary(fit1)$se)%>%mutate(P=pchisq(Estimate^2/SE^2,1,lower.tail=F))
 ```
 Here, the second coefficient of `s(dist_huai)` corresponds to the jump. Under the mixed-effect structure, the estimated jump is 31.08.
 
 We also observe a few outliers, including one PM10 value > 300 near the cutoff. To improve robustness, we apply median regression using `qgam`.
 ```{r,message=F,warning=F}
-library(qgam)
 fit3 = qgam(pm10 ~ s(dist_huai, bs = "AMatern", xt = list(getA = linearity_discontinuity, para = 0)),
           data = Huai_River, qu = 0.5)
 b3 = getViz(fit3)
@@ -193,12 +194,12 @@ theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
 
 The estimated causal effect (jump at the cutoff) from the median regression is 28.48:
 ```{r}
-data.frame(fit3$coefficients, summary(fit3)$se, summary(fit3)$p.pv)
+data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Estimate^2/SE^2,1,lower.tail=F))
 ```
 This is evidence that median GAM can be used to make the fit more robust. Currently, score tests are only supported for exponential family models. Therefore, we use the Wald test for inference:
 
 ```{r}
-taps_wald_test(fit1)
+taps_wald_test(fit3)
 ```
 The results continue to support the linearity discontinuity structure.
 

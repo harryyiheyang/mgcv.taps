@@ -122,6 +122,9 @@ concentrations, using structured smooth terms.
 library(mgcv)
 library(mgcv.taps)
 library(ggplot2)
+library(mgcViz)
+library(qgam)
+library(dplyr)
 data("Huai_River")
 head(Huai_River)
 ```
@@ -155,7 +158,6 @@ We first fit a standard GAM to estimate the non-linear effect of
 distance from the Huai River on PM10 concentration.
 
 ``` r
-library(mgcViz)
 fit0 = gam(pm10 ~ s(dist_huai, bs = "gp"), data = Huai_River, method = "REML")
 b0 = getViz(fit0)
 plot(sm(b0, 1)) +
@@ -251,21 +253,21 @@ The estimated jump at `dist_huai = 0` is 32.10. This estimate can also
 be extracted from `fit1`:
 
 ``` r
-data.frame(fit1$coefficients, summary(fit1)$se, summary(fit1)$p.pv)
+data.frame(Estimate=fit1$coefficients,SE=summary(fit1)$se)%>%mutate(P=pchisq(Estimate^2/SE^2,1,lower.tail=F))
 ```
 
-    ##                 fit1.coefficients summary.fit1..se summary.fit1..p.pv
-    ## (Intercept)            103.094354        2.2955199        7.02785e-89
-    ## s(dist_huai).1           4.013882        0.4819359        7.02785e-89
-    ## s(dist_huai).2          31.803411        8.5662862        7.02785e-89
-    ## s(dist_huai).3          -8.747310        4.5973245        7.02785e-89
-    ## s(dist_huai).4          -1.530367       54.3997500        7.02785e-89
-    ## s(dist_huai).5           1.764593       55.9657462        7.02785e-89
-    ## s(dist_huai).6           3.805944      202.1374169        7.02785e-89
-    ## s(dist_huai).7          -8.436630      295.6149652        7.02785e-89
-    ## s(dist_huai).8          -0.420288      538.6830653        7.02785e-89
-    ## s(dist_huai).9         -10.681127      799.9922269        7.02785e-89
-    ## s(dist_huai).10          9.771230     1263.4589140        7.02785e-89
+    ##                   Estimate           SE            P
+    ## (Intercept)     103.094354    2.2955199 0.000000e+00
+    ## s(dist_huai).1    4.013882    0.4819359 8.175925e-17
+    ## s(dist_huai).2   31.803411    8.5662862 2.051205e-04
+    ## s(dist_huai).3   -8.747310    4.5973245 5.708025e-02
+    ## s(dist_huai).4   -1.530367   54.3997500 9.775570e-01
+    ## s(dist_huai).5    1.764593   55.9657462 9.748470e-01
+    ## s(dist_huai).6    3.805944  202.1374169 9.849779e-01
+    ## s(dist_huai).7   -8.436630  295.6149652 9.772321e-01
+    ## s(dist_huai).8   -0.420288  538.6830653 9.993775e-01
+    ## s(dist_huai).9  -10.681127  799.9922269 9.893473e-01
+    ## s(dist_huai).10   9.771230 1263.4589140 9.938295e-01
 
 Here, the second coefficient of `s(dist_huai)` corresponds to the jump.
 Under the mixed-effect structure, the estimated jump is 31.08.
@@ -274,7 +276,6 @@ We also observe a few outliers, including one PM10 value \> 300 near the
 cutoff. To improve robustness, we apply median regression using `qgam`.
 
 ``` r
-library(qgam)
 fit3 = qgam(pm10 ~ s(dist_huai, bs = "AMatern", xt = list(getA = linearity_discontinuity, para = 0)),
           data = Huai_River, qu = 0.5)
 ```
@@ -301,36 +302,36 @@ The estimated causal effect (jump at the cutoff) from the median
 regression is 28.48:
 
 ``` r
-data.frame(fit3$coefficients, summary(fit3)$se, summary(fit3)$p.pv)
+data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Estimate^2/SE^2,1,lower.tail=F))
 ```
 
-    ##                 fit3.coefficients summary.fit3..se summary.fit3..p.pv
-    ## (Intercept)            102.770869     1.733398e+00                  0
-    ## s(dist_huai).1           4.175361     3.168971e-01                  0
-    ## s(dist_huai).2          28.483770     6.351863e+00                  0
-    ## s(dist_huai).3         -10.233436     3.119935e+00                  0
-    ## s(dist_huai).4         -92.858838     4.469603e+02                  0
-    ## s(dist_huai).5         283.488887     4.765601e+02                  0
-    ## s(dist_huai).6         358.758222     1.805697e+03                  0
-    ## s(dist_huai).7       -1067.645814     2.615167e+03                  0
-    ## s(dist_huai).8         944.214478     4.731396e+03                  0
-    ## s(dist_huai).9       -1526.630388     7.057253e+03                  0
-    ## s(dist_huai).10        161.759727     1.134724e+04                  0
+    ##                     Estimate           SE            P
+    ## (Intercept)       102.770869 1.733398e+00 0.000000e+00
+    ## s(dist_huai).1      4.175361 3.168971e-01 1.209990e-39
+    ## s(dist_huai).2     28.483770 6.351863e+00 7.314767e-06
+    ## s(dist_huai).3    -10.233436 3.119935e+00 1.038013e-03
+    ## s(dist_huai).4    -92.858838 4.469603e+02 8.354192e-01
+    ## s(dist_huai).5    283.488887 4.765601e+02 5.519337e-01
+    ## s(dist_huai).6    358.758222 1.805697e+03 8.425121e-01
+    ## s(dist_huai).7  -1067.645814 2.615167e+03 6.830891e-01
+    ## s(dist_huai).8    944.214478 4.731396e+03 8.418219e-01
+    ## s(dist_huai).9  -1526.630388 7.057253e+03 8.287377e-01
+    ## s(dist_huai).10   161.759727 1.134724e+04 9.886262e-01
 
 This is evidence that median GAM can be used to make the fit more
 robust. Currently, score tests are only supported for exponential family
 models. Therefore, we use the Wald test for inference:
 
 ``` r
-taps_wald_test(fit1)
+taps_wald_test(fit3)
 ```
 
-    ##      mixed.term fix.df fix.chisq   fix.pvalue fix.indices   smooth.df
-    ##          <char>  <num>     <num>        <num>      <char>       <num>
-    ## 1: s(dist_huai)      3  93.54071 3.801045e-20    reported 0.005179258
-    ##    smooth.chisq smooth.pvalue
-    ##           <num>         <num>
-    ## 1: 0.0009065106     0.9760216
+    ##      mixed.term fix.df fix.chisq  fix.pvalue fix.indices smooth.df smooth.chisq
+    ##          <char>  <num>     <num>       <num>      <char>     <num>        <num>
+    ## 1: s(dist_huai)      3  192.4267 1.82555e-41    reported  0.624128   0.05968008
+    ##    smooth.pvalue
+    ##            <num>
+    ## 1:     0.8073359
 
 The results continue to support the linearity discontinuity structure.
 
