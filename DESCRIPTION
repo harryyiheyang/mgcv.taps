@@ -1,0 +1,20 @@
+Package: mgcv.taps
+Type: Package
+Title: Implementation of TAPS by using R package mgcv.
+Version: 0.1.0
+Author: Yihe Yang
+Maintainer: Yihe Yang <yxy1234@case.edu>
+Description: TAPS (Test for Arbitrary Parametric Structure) is a novel estimation and hypothesis testing methodology designed to assess whether a parametric structure can sufficiently describe a target function in a generalized additive model. This package implements the decomposition of the target function into an "A + B" structure, where A represents the basis matrix of the parametric structure to be tested, and B is the basis matrix of splines adaptively orthogonal to A. The R package mgcv can recognize the novel splines constructed by this package.
+License: License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
+Imports:
+    data.table,
+    mgcv,
+    ordgam,
+    Matrix,
+    CppMatrix
+Remotes:
+    harryyiheyang/CppMatrix
+ORCID: 0000-0001-6563-3579
