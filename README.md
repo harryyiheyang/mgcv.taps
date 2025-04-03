@@ -139,7 +139,7 @@ head(Huai_River)
 
 ``` r
 ggplot(Huai_River, aes(x = dist_huai, y = pm10)) +
-  geom_point(color = "black", size = 3) +
+  geom_point(color = "black", size = 3, fill="#60c5ba",shape=21) +
   labs(
     title = "PM10 Concentration vs. Distance from Huai River",
     x = "Distance from Huai River",
@@ -164,6 +164,7 @@ plot(sm(b0, 1)) +
 l_ciPoly(mul = 5, fill = "#60c5ba", alpha = 0.25) +
 l_rug(mapping = aes(x = x), alpha = 0.25, color = "#60c5ba") +
 l_fitLine(colour = "black", size = 2) +
+l_points()+
 theme_get() +
 xlab("Distance from Huai River (dist_huai)") + ylab("f(dist_huai)") +
 ggtitle("Non-linear effect of Distance from Huai River fitted by mgcv") +
@@ -184,6 +185,7 @@ plot(sm(b1, 1)) +
 l_ciPoly(mul = 5, fill = "#60c5ba", alpha = 0.25) +
 l_rug(mapping = aes(x = x), alpha = 0.25, color = "#60c5ba") +
 l_fitLine(colour = "black", size = 2) +
+l_points()+
 theme_get() +
 xlab("Distance from Huai River (dist_huai)") + ylab("f(dist_huai)") +
 ggtitle("Mixed-linear effect of Distance from Huai River fitted by mgcv.taps") +
@@ -289,6 +291,7 @@ plot(sm(b3, 1)) +
 l_ciPoly(mul = 5, fill = "#60c5ba", alpha = 0.25) +
 l_rug(mapping = aes(x = x), alpha = 0.25, color = "#60c5ba") +
 l_fitLine(colour = "black", size = 2) +
+l_points()+
 theme_get() +
 xlab("Distance from Huai River (dist_huai)") + ylab("f(dist_huai)") +
 ggtitle("Mixed-linear effect of Distance from Huai River fitted by mgcv.taps and qgam") +

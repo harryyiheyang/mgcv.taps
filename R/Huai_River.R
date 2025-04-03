@@ -32,7 +32,7 @@
 #' head(Huai_River)
 #'
 #' @seealso
-#' The original replication files are available in the "Supporting_Datasets" folder of the study’s archive,
+#' The original replication files are available in the "Supporting_Datasets" folder of the study’s archive (https://www.pnas.org/doi/10.1073/pnas.1616784114#data-availability),
 #' with "DSP_PM10.dta" being the source file for this dataset.
 #'
 "Huai_River"
