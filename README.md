@@ -1,5 +1,5 @@
 mgcv.taps: Implementation of TAPS (Test for Arbitrary Parametric
-Structure) by using R package mgcv.
+Structure) by using R package mgcv
 ================
 
 # mgcv.taps
@@ -85,9 +85,9 @@ a list:
 
 ### Quantile Example
 
-When the response follows the exponential family of distributions,
-quantile GAM (`qgam`) can also be incorporated with mgcv.taps, whose
-usage is slight different from `gam`:
+When the response follows the Gaussian distribution, quantile GAM
+(`qgam`) can also be incorporated with mgcv.taps, whose usage is slight
+different from `gam`:
 
     qgam(y~s(x,bs="AMatern",k=10,xt=list(getA=function(x,para) cbind(1,x))),qu=0.5,data=data)
 
