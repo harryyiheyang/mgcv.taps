@@ -67,13 +67,28 @@ Estimation is performed using `mgcv::gam()`. The `xt` argument should be a list:
 ### Univariate Example
 
 ```
-gam(y~s(x,bs="AMatern",k=10,xt=list(getA=function(x,para) cbind(1,x))))
+gam(y~s(x,bs="AMatern",k=10,xt=list(getA=function(x,para) cbind(1,x))),
+        family=c("gaussian","binary",...),method=c("REML","GCV.Cp",...))
 ```
 
 ### Bivariate Example
 
 ```
-gam(y~s(x1,x2,bs="A2Matern",k=10,xt=list(getA=function(x1,x2,para) cbind(1,x1,x2,x1*x2))))
+gam(y~s(x1,x2,bs="A2Matern",k=10,xt=list(getA=function(x1,x2,para) cbind(1,x1,x2,x1*x2)))),
+       family=c("gaussian","binary",...),method=c("REML","GCV.Cp",...))
+```
+
+### Quantile Example
+
+When the response follows the exponential family of distributions, quantile GAM (`qgam`) can also be incorporated with mgcv.taps, whose usage is slight different from `gam`:
+
+```
+qgam(y~s(x,bs="AMatern",k=10,xt=list(getA=function(x,para) cbind(1,x))),qu=0.5,data=data)
+```
+
+```
+qgam(y~s(x1,x2,bs="A2Matern",k=10,xt=list(getA=function(x1,x2,para) cbind(1,x1,x2,x1*x2))),qu=0.5,data=data)
+
 ```
 
 ## Hypothesis Testing
@@ -91,11 +106,8 @@ Alternatively, one can also perform a score test variance component using `taps_
 taps_score_test(fit,test.component=1)
 ```
 
-Both can be used to formally test the parametric structure encoded in `A`. In these two test functions, `test.component` refers to the index of smooth term to be tested.
+Both can be used to formally test the parametric structure encoded in `A`. In these two test functions, `test.component` refers to the index of smooth term to be tested.  
 
-## Family of Outcome
-
-Currently, one can use the two novel smoothers, `AMatern` and `A2Matern`, to estimate models under any family of outcome supported by `mgcv`.
 For hypothesis testing, `taps_wald_test` also supports all outcome families. However, `taps_score_test` is currently limited to exponential family distributions.
 
 ## Example

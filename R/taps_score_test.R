@@ -28,6 +28,11 @@
 #' @export
 taps_score_test <- function(fit,test.component=1,null.tol=1e-10, large_n=F) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
+prior_weights <- fit$prior.weights
+if (any(prior_weights != 1)) {
+stop("Score test currently only supports models with prior.weights == 1 for all observations.")
+}
+################################################################################################
 if(length(fit$residuals)>10000){
 cat("Large sample size. Enforce operator-based projection for efficient score test.\n")
 large_n=T
