@@ -108,79 +108,225 @@ Currently, one can use the two novel smoothers, `AMatern` and
 outcome families. However, `taps_score_test` is currently limited to
 exponential family distributions.
 
-## Examples
+## Example
 
-The example utilizes the `gov_transfers` dataset from the R package
-`causaldata`, which includes data from [Manacorda et
-al. (2011)](https://www.aeaweb.org/articles?id=10.1257/app.3.3.1),
-regarding a government transfer program allocated based on an income
-threshold. The dataset is pre-filtered to include only households near
-this income cutoff. For additional details, refer to `?gov_transfer`.
-
-The codes below fit the effect of income on support of the government
-yielded by the standard GAM:
+This example demonstrates how to use the `mgcv.taps` package to study
+causal effects using the **Huai River dataset**, as described in
+[Ebenstein et al. (2017)](https://doi.org/10.1073/pnas.1616784114). The
+dataset includes observations from China’s Disease Surveillance Points
+(DSPs) located near the Huai River boundary. We examine whether the
+policy-induced discontinuity at the Huai River affects PM10
+concentrations, using structured smooth terms.
 
 ``` r
 library(mgcv)
 library(mgcv.taps)
-library(causaldata)
-options(bitmapType="cairo")
-data("gov_transfers")
-gov_transfers$support_success=gov_transfers$Support*2
-gov_transfers$support_failure=2-gov_transfers$support_success
-fit0=gam(cbind(support_success,support_failure)~s(Income_Centered,bs="gp")+Education+Age,data=gov_transfers,family=binomial(link="probit"))
-plot(fit0,main="Standard GAM Fit of Income Effect")
+data("Huai_River")
+head(Huai_River)
+```
+
+    ##   county_code north_huai      pm10 dist_huai
+    ## 1      110101          1 142.72504  7.059595
+    ## 2      110112          1 142.72504  7.012374
+    ## 3      120106          1 113.66918  6.202500
+    ## 4      120225          1 120.25087  7.046167
+    ## 5      130205          1 106.55930  6.631720
+    ## 6      130227          1  94.78634  7.101388
+
+``` r
+plot(Huai_River$dist_huai, Huai_River$pm10,
+   main = "PM10 Concentration vs. Distance from Huai River",
+   xlab = "Distance from Huai River",
+   ylab = "PM10 Concentration",
+   pch = 16, col = "black")
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
-We then investigate whether there is a discontinuity at `income=0`,
-using the model `A=cbind(1, income, pmax(0, income))`:
+We first fit a standard GAM to estimate the non-linear effect of
+distance from the Huai River on PM10 concentration.
 
 ``` r
-fit1=gam(cbind(support_success,support_failure)~s(Income_Centered,bs="AMatern",xt=list(getA=linearity_discontinuity,para=0))+Education+Age,data=gov_transfers,method="REML",family=binomial(link="probit"))
-plot(fit1,main="GAM Fit of Income Effect with one Breakpoint")
+library(mgcViz)
+fit0 = gam(pm10 ~ s(dist_huai, bs = "gp"), data = Huai_River, method = "REML")
+b0 = getViz(fit0)
+plot(sm(b0, 1)) +
+l_ciPoly(mul = 5, fill = "#60c5ba", alpha = 0.25) +
+l_rug(mapping = aes(x = x), alpha = 0.25, color = "#60c5ba") +
+l_fitLine(colour = "black", size = 2) +
+theme_get() +
+xlab("Distance from Huai River (dist_huai)") + ylab("f(dist_huai)") +
+ggtitle("Non-linear effect of Distance from Huai River fitted by mgcv") +
+theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
+      panel.background = element_rect(fill = "#f4f4f4"))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
+We then test whether a discontinuity at `dist_huai = 0` is sufficient by
+fitting a mixed-linear term using `linearity_discontinuity()`.
+
 ``` r
-taps_score_test(fit1)
+fit1 = gam(pm10 ~ s(dist_huai, bs = "AMatern", xt = list(getA = linearity_discontinuity, para = 0)),
+         data = Huai_River, method = "REML")
+b1 = getViz(fit1)
+plot(sm(b1, 1)) +
+l_ciPoly(mul = 5, fill = "#60c5ba", alpha = 0.25) +
+l_rug(mapping = aes(x = x), alpha = 0.25, color = "#60c5ba") +
+l_fitLine(colour = "black", size = 2) +
+theme_get() +
+xlab("Distance from Huai River (dist_huai)") + ylab("f(dist_huai)") +
+ggtitle("Mixed-linear effect of Distance from Huai River fitted by mgcv.taps") +
+theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
+      panel.background = element_rect(fill = "#f4f4f4"))
 ```
 
-    ##           smooth.term smooth.df smooth.stat smooth.pvalue
-    ##                <char>     <num>       <num>         <num>
-    ## 1: s(Income_Centered)  2.523577    2.931358     0.3194111
+![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- --> We conduct a
+score test and Wald test to assess whether a more flexible model is
+necessary.
+
+``` r
+taps_score_test(fit1)[, 1:4]
+```
+
+    ##     smooth.term smooth.df smooth.stat smooth.pvalue
+    ##          <char>     <num>       <num>         <num>
+    ## 1: s(dist_huai)  2.182325    1.599638     0.4915625
 
 ``` r
 taps_wald_test(fit1)
 ```
 
-    ##            mixed.term fix.df fix.chisq   fix.pvalue fix.indices smooth.df
-    ##                <char>  <num>     <num>        <num>      <char>     <num>
-    ## 1: s(Income_Centered)      3  72.20276 1.440396e-15    reported  4.115946
+    ##      mixed.term fix.df fix.chisq   fix.pvalue fix.indices   smooth.df
+    ##          <char>  <num>     <num>        <num>      <char>       <num>
+    ## 1: s(dist_huai)      3  93.54071 3.801045e-20    reported 0.005179258
     ##    smooth.chisq smooth.pvalue
     ##           <num>         <num>
-    ## 1:     12.05502    0.01814953
+    ## 1: 0.0009065106     0.9760216
 
-Based on the score test, there is no evidence to suggest that a more
-complex model beyond a linearity discontinuity with a breakpoint at
-`income = 0` is necessary. However, the Wald test indicates a slight
-non-linear effect in addition to the linearity discontinuity.
+The results support the null hypothesis that the linearity discontinuity
+at `dist_huai = 0` sufficiently captures the variation.
 
-We conclude by examining the effect pattern of income on support using a
-parametric GLM. For simplicity and clarity in presentation, we developed
-a fixed-effect smooth term, `s(Income_Centered, fx=TRUE, bs="Fixed")`,
-which exactly models the effect of income as a parametric function
-defined by linearity_discontinuity. Refer to `?gam`for more details on
-fixed-effect smooth terms (`fx=TRUE`). Below are our results:
+We then fit a model using the parametric form `A %*% alpha` to estimate
+the causal effect directly.
 
 ``` r
-fit2 = gam(cbind(support_success, support_failure) ~ s(Income_Centered, fx=TRUE, bs="Fixed", xt=list(getA=linearity_discontinuity, para=0)) + Education + Age, data = gov_transfers, family = binomial(link="probit"))
-plot(fit2, main = "Exact GLM Fit of Income Effect with One Breakpoint")
+fit2 = gam(pm10 ~ linearity_discontinuity(dist_huai, para = 0), data = Huai_River)
+summary(fit2)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+    ## 
+    ## Family: gaussian 
+    ## Link function: identity 
+    ## 
+    ## Formula:
+    ## pm10 ~ linearity_discontinuity(dist_huai, para = 0)
+    ## 
+    ## Parametric coefficients:
+    ##                                                       Estimate Std. Error
+    ## (Intercept)                                            52.8631     2.8094
+    ## linearity_discontinuity(dist_huai, para = 0)Intercept  52.8631     2.8094
+    ## linearity_discontinuity(dist_huai, para = 0)x           4.3624     0.9961
+    ## linearity_discontinuity(dist_huai, para = 0)0_jump     32.1029     8.1151
+    ## linearity_discontinuity(dist_huai, para = 0)0_slope    -6.8941     1.2655
+    ##                                                       t value Pr(>|t|)    
+    ## (Intercept)                                            18.817  < 2e-16 ***
+    ## linearity_discontinuity(dist_huai, para = 0)Intercept  18.817  < 2e-16 ***
+    ## linearity_discontinuity(dist_huai, para = 0)x           4.379 2.22e-05 ***
+    ## linearity_discontinuity(dist_huai, para = 0)0_jump      3.956 0.000117 ***
+    ## linearity_discontinuity(dist_huai, para = 0)0_slope    -5.448 2.04e-07 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## 
+    ## Rank: 4/5
+    ## R-sq.(adj) =  0.372   Deviance explained = 38.4%
+    ## GCV = 833.14  Scale est. = 811.5     n = 154
+
+The estimated jump at `dist_huai = 0` is 32.10. This estimate can also
+be extracted from `fit1`:
+
+``` r
+data.frame(fit1$coefficients, summary(fit1)$se)
+```
+
+    ##                 fit1.coefficients summary.fit1..se
+    ## (Intercept)            103.094354        2.2955199
+    ## s(dist_huai).1           4.013882        0.4819359
+    ## s(dist_huai).2          31.803411        8.5662862
+    ## s(dist_huai).3          -8.747310        4.5973245
+    ## s(dist_huai).4          -1.530367       54.3997500
+    ## s(dist_huai).5           1.764593       55.9657462
+    ## s(dist_huai).6           3.805944      202.1374169
+    ## s(dist_huai).7          -8.436630      295.6149652
+    ## s(dist_huai).8          -0.420288      538.6830653
+    ## s(dist_huai).9         -10.681127      799.9922269
+    ## s(dist_huai).10          9.771230     1263.4589140
+
+Here, the second coefficient of `s(dist_huai)` corresponds to the jump.
+Under the mixed-effect structure, the estimated jump is 31.08.
+
+We also observe a few outliers, including one PM10 value \> 300 near the
+cutoff. To improve robustness, we apply median regression using `qgam`.
+
+``` r
+library(qgam)
+fit3 = qgam(pm10 ~ s(dist_huai, bs = "AMatern", xt = list(getA = linearity_discontinuity, para = 0)),
+          data = Huai_River, qu = 0.5)
+```
+
+    ## Estimating learning rate. Each dot corresponds to a loss evaluation. 
+    ## qu = 0.5.................done
+
+``` r
+b3 = getViz(fit3)
+plot(sm(b3, 1)) +
+l_ciPoly(mul = 5, fill = "#60c5ba", alpha = 0.25) +
+l_rug(mapping = aes(x = x), alpha = 0.25, color = "#60c5ba") +
+l_fitLine(colour = "black", size = 2) +
+theme_get() +
+xlab("Distance from Huai River (dist_huai)") + ylab("f(dist_huai)") +
+ggtitle("Mixed-linear effect of Distance from Huai River fitted by mgcv.taps and qgam") +
+theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
+      panel.background = element_rect(fill = "#f4f4f4"))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- --> The estimated
+causal effect (jump at the cutoff) from the median regression is 28.48:
+
+``` r
+data.frame(fit3$coefficients, summary(fit3)$se)
+```
+
+    ##                 fit3.coefficients summary.fit3..se
+    ## (Intercept)            102.770869     1.733398e+00
+    ## s(dist_huai).1           4.175361     3.168971e-01
+    ## s(dist_huai).2          28.483770     6.351863e+00
+    ## s(dist_huai).3         -10.233436     3.119935e+00
+    ## s(dist_huai).4         -92.858838     4.469603e+02
+    ## s(dist_huai).5         283.488887     4.765601e+02
+    ## s(dist_huai).6         358.758222     1.805697e+03
+    ## s(dist_huai).7       -1067.645814     2.615167e+03
+    ## s(dist_huai).8         944.214478     4.731396e+03
+    ## s(dist_huai).9       -1526.630388     7.057253e+03
+    ## s(dist_huai).10        161.759727     1.134724e+04
+
+This is evidence that median GAM can be used to make the fit more
+robust. Currently, score tests are only supported for exponential family
+models. Therefore, we use the Wald test for inference:
+
+``` r
+taps_wald_test(fit1)
+```
+
+    ##      mixed.term fix.df fix.chisq   fix.pvalue fix.indices   smooth.df
+    ##          <char>  <num>     <num>        <num>      <char>       <num>
+    ## 1: s(dist_huai)      3  93.54071 3.801045e-20    reported 0.005179258
+    ##    smooth.chisq smooth.pvalue
+    ##           <num>         <num>
+    ## 1: 0.0009065106     0.9760216
+
+The results continue to support the linearity discontinuity structure.
 
 ## License
 
