@@ -322,11 +322,11 @@ data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Est
     ## s(dist_huai).2     28.483770 6.351863e+00 7.314767e-06
     ## s(dist_huai).3    -10.233436 3.119935e+00 1.038013e-03
     ## s(dist_huai).4    -92.858838 4.469603e+02 8.354192e-01
-    ## s(dist_huai).5    283.488887 4.765601e+02 5.519337e-01
-    ## s(dist_huai).6    358.758222 1.805697e+03 8.425121e-01
-    ## s(dist_huai).7  -1067.645814 2.615167e+03 6.830891e-01
-    ## s(dist_huai).8    944.214478 4.731396e+03 8.418219e-01
-    ## s(dist_huai).9  -1526.630388 7.057253e+03 8.287377e-01
+    ## s(dist_huai).5    283.488888 4.765601e+02 5.519337e-01
+    ## s(dist_huai).6    358.758223 1.805697e+03 8.425121e-01
+    ## s(dist_huai).7  -1067.645817 2.615167e+03 6.830891e-01
+    ## s(dist_huai).8    944.214481 4.731396e+03 8.418219e-01
+    ## s(dist_huai).9  -1526.630392 7.057253e+03 8.287377e-01
     ## s(dist_huai).10   161.759727 1.134724e+04 9.886262e-01
 
 This is evidence that median GAM can be used to make the fit more
