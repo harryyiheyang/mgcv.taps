@@ -124,7 +124,6 @@ data.table(
 smooth.term = smooth_terms[[test.component]]$label,
 smooth.df = nu,
 smooth.stat = u / kappa,
-smooth.pvalue = pv,
-u = u, e = e, h = h, kappa = kappa, nu = nu
+smooth.pvalue = pv
 )
 }

@@ -126,8 +126,7 @@ kappa=h/2/e
 nu=2*e^2/h
 pv=pchisq(u/kappa, nu, lower.tail = FALSE)
 out_list=data.table(smooth.term=smooth_terms[[test.component]]$label,
-                    smooth.df=nu,smooth.stat=u/kappa,smooth.pvalue=pv,
-                    u=u,e=e,h=h,kappa=kappa,nu=nu)
+                    smooth.df=nu,smooth.stat=u/kappa,smooth.pvalue=pv)
 return(out_list)
 }
 }
