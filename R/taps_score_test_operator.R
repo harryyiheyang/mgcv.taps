@@ -146,6 +146,8 @@ Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
 pv=CompQuadForm::davies(q=u,lambda=lambda)$Qq
+nu=sum(lambda)^2/sum(lambda^2)
+test_stat=u/sum(lambda)
 }else if(method=="farebrother"){
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- P_apply(error)
