@@ -24,7 +24,7 @@ f4=0*x4
 eta=f1+f2+f3
 y=rbinom(n,1,pnorm(eta/2-5/2))
 b=gam(y~s(x1,bs="AMatern",k=10,m=100,xt=list(getA=linearity_discontinuity,para=0.5))+s(x2,bs="cr",k=10)+s(x3,bs="cr",k=15)+s(x4,bs="cr",k=10),method="REML",family=binomial(link="probit"))
-fit1=taps_score_test(b,test.component=1)
+fit1=taps_score_test(b,test.component=1,method="satterthwaite")
 fit2=taps_score_test(b,test.component=1,method="liu")
 fit3=taps_score_test(b,test.component=1,method="davies")
 fit4=taps_score_test(b,test.component=1,method="farebrother")

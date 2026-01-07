@@ -99,11 +99,11 @@ The package provides a wrapper for Wald tests on specific components of the mode
 taps_wald_test(fit,test.component=1)
 ```
 
-Alternatively, one can also perform a score test variance component using `taps_score_test` ([Zhang and Lin, 2003](https://doi.org/10.1093/biostatistics/4.1.57)).
+Alternatively, one can also perform a score test variance component using `taps_score_test` ([Zhang and Lin, 2003](https://doi.org/10.1093/biostatistics/4.1.57)). We use `CompQuadForm::farebrother` as the default method to compute the p-value.
 
 
 ```
-taps_score_test(fit,test.component=1)
+taps_score_test(fit,test.component=1,method="farebrother)
 ```
 
 Both can be used to formally test the parametric structure encoded in `A`. In these two test functions, `test.component` refers to the index of smooth term to be tested.  

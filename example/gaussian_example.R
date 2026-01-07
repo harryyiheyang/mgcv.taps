@@ -24,7 +24,7 @@ dat=data.frame(x0=x1,x1=x2,x2=x3,x3=x4,y=y)
 
 b<-bam(y~s(x0,bs="AMatern",k=10,m=300,xt=list(getA=polynomial,para=2))+s(x1,bs="cr")+s(x2,bs="cr")+s(x3,bs="cr"),data=dat,family="gaussian",method="REML")
 fitb=summary(b)
-fit1=taps_score_test(b,test.component=1)
+fit1=taps_score_test(b,test.component=1,method="satterthwaite")
 fit2=taps_score_test(b,test.component=1,method="liu")
 fit3=taps_score_test(b,test.component=1,method="davies")
 fit4=taps_score_test(b,test.component=1,method="farebrother")

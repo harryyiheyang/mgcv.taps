@@ -104,9 +104,11 @@ function `mgcv::testStat` ([Wood,
 
 Alternatively, one can also perform a score test variance component
 using `taps_score_test` ([Zhang and Lin,
-2003](https://doi.org/10.1093/biostatistics/4.1.57)).
+2003](https://doi.org/10.1093/biostatistics/4.1.57)). We use
+`CompQuadForm::farebrother` as the default method to compute the
+p-value.
 
-    taps_score_test(fit,test.component=1)
+    taps_score_test(fit,test.component=1,method="farebrother)
 
 Both can be used to formally test the parametric structure encoded in
 `A`. In these two test functions, `test.component` refers to the index
@@ -212,7 +214,7 @@ taps_score_test(fit1)[, 1:4]
 
     ##     smooth.term smooth.df smooth.stat smooth.pvalue
     ##          <char>     <num>       <num>         <num>
-    ## 1: s(dist_huai)  2.182325    1.599638     0.4915625
+    ## 1: s(dist_huai)  2.182325   0.7329975     0.4840141
 
 ``` r
 taps_wald_test(fit1)
@@ -291,7 +293,7 @@ fit3 = qgam(pm10 ~ s(dist_huai, bs = "AMatern", xt = list(getA = linearity_disco
 ```
 
     ## Estimating learning rate. Each dot corresponds to a loss evaluation. 
-    ## qu = 0.5.................done
+    ## qu = 0.5.............done
 
 ``` r
 b3 = getViz(fit3)
@@ -317,17 +319,17 @@ data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Est
 ```
 
     ##                     Estimate           SE            P
-    ## (Intercept)       102.770869 1.733398e+00 0.000000e+00
-    ## s(dist_huai).1      4.175361 3.168971e-01 1.209990e-39
-    ## s(dist_huai).2     28.483770 6.351863e+00 7.314767e-06
-    ## s(dist_huai).3    -10.233436 3.119935e+00 1.038013e-03
-    ## s(dist_huai).4    -92.858838 4.469603e+02 8.354192e-01
-    ## s(dist_huai).5    283.488888 4.765601e+02 5.519337e-01
-    ## s(dist_huai).6    358.758223 1.805697e+03 8.425121e-01
-    ## s(dist_huai).7  -1067.645817 2.615167e+03 6.830891e-01
-    ## s(dist_huai).8    944.214481 4.731396e+03 8.418219e-01
-    ## s(dist_huai).9  -1526.630392 7.057253e+03 8.287377e-01
-    ## s(dist_huai).10   161.759727 1.134724e+04 9.886262e-01
+    ## (Intercept)       102.696949    1.7149119 0.000000e+00
+    ## s(dist_huai).1      4.166692    0.3162799 1.237522e-39
+    ## s(dist_huai).2     28.422782    6.2973960 6.379106e-06
+    ## s(dist_huai).3    -10.185088    3.0927552 9.905095e-04
+    ## s(dist_huai).4    -66.033257  381.6246370 8.626263e-01
+    ## s(dist_huai).5    200.821259  403.7255008 6.188927e-01
+    ## s(dist_huai).6    258.005618 1507.9315850 8.641459e-01
+    ## s(dist_huai).7   -759.936664 2189.2936329 7.285049e-01
+    ## s(dist_huai).8    665.382754 3967.7420684 8.668208e-01
+    ## s(dist_huai).9  -1078.771063 5915.7935388 8.553046e-01
+    ## s(dist_huai).10   141.150916 9461.6519972 9.880974e-01
 
 This is evidence that median GAM can be used to make the fit more
 robust. Currently, score tests are only supported for exponential family
@@ -337,12 +339,12 @@ models. Therefore, we use the Wald test for inference:
 taps_wald_test(fit3)
 ```
 
-    ##      mixed.term fix.df fix.chisq  fix.pvalue fix.indices smooth.df smooth.chisq
-    ##          <char>  <num>     <num>       <num>      <char>     <num>        <num>
-    ## 1: s(dist_huai)      3  192.4267 1.82555e-41    reported  0.624128   0.05968008
-    ##    smooth.pvalue
-    ##            <num>
-    ## 1:     0.8073359
+    ##      mixed.term fix.df fix.chisq   fix.pvalue fix.indices smooth.df
+    ##          <char>  <num>     <num>        <num>      <char>     <num>
+    ## 1: s(dist_huai)      3  192.7287 1.570846e-41    reported 0.4684083
+    ##    smooth.chisq smooth.pvalue
+    ##           <num>         <num>
+    ## 1:   0.04167112     0.8385246
 
 The results continue to support the linearity discontinuity structure.
 

@@ -8,7 +8,7 @@ taps_score_test(
   fit,
   test.component = 1,
   null.tol = 1e-10,
-  method = "satterthwaite"
+  method = "farebrother"
 )
 }
 \arguments{
@@ -18,7 +18,7 @@ taps_score_test(
 
 \item{null.tol}{The tolerance of row norm to detect indices of null space. Default to 1e-10.}
 
-\item{method}{Method for p-value calculation: `"satterthwaite"` (default) or `"liu"` or `"davies"` or `"imhof"` or `"farebrother"`.}
+\item{method}{Method for p-value calculation: `"satterthwaite"` or `"liu"` or `"davies"` or `"imhof"` or `"farebrother"` (default).}
 }
 \value{
 A `data.table` summarizing Score statistics and p-values separately
