@@ -116,9 +116,7 @@ kappa <- h / (2 * e)
 nu <- 2 * e^2 / h
 pv <- pchisq(u / kappa, df = nu, lower.tail = FALSE)
 test_stat <- u / kappa
-
 }else if (method == "liu") {
-
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- P_apply(error)
 Gj_r <- Gj_apply(r)
@@ -131,34 +129,9 @@ BtPB <- crossprod(Bj, N)
 Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
-
-c1 <- sum(lambda)
-c2 <- sum(lambda^2)
-c3 <- sum(lambda^3)
-c4 <- sum(lambda^4)
-
-s1 <- c3 / (c2^(3/2))
-s2 <- c4 / (c2^2)
-if (s1^2 > s2) {
-a <- 1 / (s1 - sqrt(s1^2 - s2))
-delta <- s1 * a^3 - a^2
-l <- a^2 - 2 * delta
-} else {
-a <- 1 / s1
-delta <- 0
-l <- 1 / (s1^2)
-}
-muX <- l + delta
-sigmaX <- sqrt(2) * a
-muQ <- c1
-sigmaQ <- sqrt(2 * c2)
-Q_star <- (u - muQ) / sigmaQ
-Q_norm <- Q_star * sigmaX + muX
-pv <- pchisq(Q_norm, df = l, ncp = delta, lower.tail = FALSE)
-nu <- sum(lambda)^2 / sum(lambda^2)
-test_stat <- u
-kappa <- 1
-
+pv=CompQuadForm::liu(q=u,lambda=lambda)
+nu=sum(lambda)^2/sum(lambda^2)
+test_stat=u/sum(lambda)
 }else if(method=="davies"){
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- P_apply(error)
@@ -187,6 +160,8 @@ Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
 pv=CompQuadForm::farebrother(q=u,lambda=lambda)$Qq
+nu=sum(lambda)^2/sum(lambda^2)
+test_stat=u/sum(lambda)
 }else if(method=="imhof"){
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- P_apply(error)
@@ -201,6 +176,8 @@ Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
 pv=CompQuadForm::imhof(q=u,lambda=lambda)$Qq
+nu=sum(lambda)^2/sum(lambda^2)
+test_stat=u/sum(lambda)
 }else {
 stop("method must be either 'satterthwaite' or 'davies' or 'liu' or 'imhof' or 'farebrother'")
 }
