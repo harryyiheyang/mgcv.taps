@@ -4,7 +4,12 @@
 \alias{taps_score_test}
 \title{Perform Score Tests on mgcv Smooth Terms (Null and Penalized Components)}
 \usage{
-taps_score_test(fit, test.component = 1, null.tol = 1e-10)
+taps_score_test(
+  fit,
+  test.component = 1,
+  null.tol = 1e-10,
+  method = "satterthwaite"
+)
 }
 \arguments{
 \item{fit}{A fitted `gam` or `bam` model from the `mgcv` package.}
@@ -12,6 +17,8 @@ taps_score_test(fit, test.component = 1, null.tol = 1e-10)
 \item{test.component}{The index of smooth component to be tested.}
 
 \item{null.tol}{The tolerance of row norm to detect indices of null space. Default to 1e-10.}
+
+\item{method}{Method for p-value calculation: `"satterthwaite"` (default) or `"liu"` or `"davies"` or `"imhof"` or `"farebrother"`.}
 }
 \value{
 A `data.table` summarizing Score statistics and p-values separately

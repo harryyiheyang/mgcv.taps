@@ -147,3 +147,18 @@ canonical_link <- switch(family_name,
 
 return(used_link == canonical_link)
 }
+
+#' @importFrom CppMatrix matrixInverse matrixMultiply matrixVectorMultiply matrixEigen
+matrixsqrt=function(A){
+fit=matrixEigen(t(A)/2+A/2)
+d=c(fit$value)
+d1=d*0
+d1[d>0]=1/d[d>0]
+d[d<=0]=0
+d=sqrt(d)
+d1=sqrt(d1)
+A=matrixMultiply(fit$vector,t(fit$vector)*d)
+B=matrixMultiply(fit$vector,t(fit$vector)*d1)
+C=list(w=A,wi=B,eigenfit=fit)
+return(C)
+}

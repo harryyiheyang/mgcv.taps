@@ -1,7 +1,7 @@
 #' @keywords internal
 #' Operator-based implementation for large-n score test
 #' Used internally by `taps_score_test()` when sample size is large.
-taps_score_test_operator <- function(fit, test.component = 1, null.tol = 1e-10) {
+taps_score_test_operator <- function(fit, test.component = 1, null.tol = 1e-10, method = "satterthwaite") {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
 beta <- fit$coefficients
@@ -10,7 +10,6 @@ rdf <- fit$df.residual
 smooth_terms <- fit$smooth
 p <- length(smooth_terms)
 phivec <- fit$sp
-
 eta <- fit$linear.predictors
 mu <- fit$fitted.values
 mu_eta_func <- fit$family$mu.eta
@@ -62,7 +61,6 @@ random_index_list[[i]] <- smooth_indices
 S_list <- Filter(Negate(is.null), S_list)
 smooth_index_list <- Filter(Negate(is.null), smooth_index_list)
 random_index_list <- Filter(Negate(is.null), random_index_list)
-
 smooth_index_vec <- do.call(c, smooth_index_list)
 random_index_vec <- do.call(c, random_index_list)
 fixed_index_vec <- setdiff(seq_len(ncol(X)), random_index_vec)
@@ -70,7 +68,6 @@ fixed_index_vec <- setdiff(seq_len(ncol(X)), random_index_vec)
 A <- X[, fixed_index_vec]
 alpha <- beta[fixed_index_vec]
 B_extend <- X[, smooth_index_vec]
-
 S_All <- as.matrix(bdiag(S_list))
 XtX <- matrixMultiply(t(B_extend), B_extend * (1 / V_phi))
 C <- matrixInverse(XtX + S_All)
@@ -96,6 +93,7 @@ correction <- matrixVectorMultiply(Vinv_X, solve_middle)
 Vinv_v - correction
 }
 
+if (method == "satterthwaite") {
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- Vinv_apply(error)
 Gj_r <- Gj_apply(r)
@@ -110,20 +108,108 @@ Cj[i, j] <- sum(Bj[, j] * Pi)
 if (i != j) Cj[j, i] <- Cj[i, j]
 }
 }
-
 PGj <- matrixMultiply(Cj, Thetaj)
 PGj2 <- matrixMultiply(PGj, PGj)
 e <- sum(diag(PGj)) / 2
 h <- sum(diag(PGj2)) / 2
-
 kappa <- h / (2 * e)
 nu <- 2 * e^2 / h
 pv <- pchisq(u / kappa, df = nu, lower.tail = FALSE)
+test_stat <- u / kappa
+
+}else if (method == "liu") {
+
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+
+c1 <- sum(lambda)
+c2 <- sum(lambda^2)
+c3 <- sum(lambda^3)
+c4 <- sum(lambda^4)
+
+s1 <- c3 / (c2^(3/2))
+s2 <- c4 / (c2^2)
+if (s1^2 > s2) {
+a <- 1 / (s1 - sqrt(s1^2 - s2))
+delta <- s1 * a^3 - a^2
+l <- a^2 - 2 * delta
+} else {
+a <- 1 / s1
+delta <- 0
+l <- 1 / (s1^2)
+}
+muX <- l + delta
+sigmaX <- sqrt(2) * a
+muQ <- c1
+sigmaQ <- sqrt(2 * c2)
+Q_star <- (u - muQ) / sigmaQ
+Q_norm <- Q_star * sigmaX + muX
+pv <- pchisq(Q_norm, df = l, ncp = delta, lower.tail = FALSE)
+nu <- sum(lambda)^2 / sum(lambda^2)
+test_stat <- u
+kappa <- 1
+
+}else if(method=="davies"){
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+pv=CompQuadForm::davies(q=u,lambda=lambda)$Qq
+}else if(method=="farebrother"){
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+pv=CompQuadForm::farebrother(q=u,lambda=lambda)$Qq
+}else if(method=="imhof"){
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+pv=CompQuadForm::imhof(q=u,lambda=lambda)$Qq
+}else {
+stop("method must be either 'satterthwaite' or 'davies' or 'liu' or 'imhof' or 'farebrother'")
+}
 
 data.table(
 smooth.term = smooth_terms[[test.component]]$label,
 smooth.df = nu,
-smooth.stat = u / kappa,
-smooth.pvalue = pv
+smooth.stat = test_stat,
+smooth.pvalue = pv,
+method = method
 )
 }
