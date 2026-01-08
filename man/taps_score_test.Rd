@@ -8,7 +8,9 @@ taps_score_test(
   fit,
   test.component = 1,
   null.tol = 1e-10,
-  method = "farebrother"
+  method = "wood",
+  max_eps = 1e-08,
+  max_iter = 1e+05
 )
 }
 \arguments{
@@ -18,7 +20,11 @@ taps_score_test(
 
 \item{null.tol}{The tolerance of row norm to detect indices of null space. Default to 1e-10.}
 
-\item{method}{Method for p-value calculation: `"satterthwaite"` or `"liu"` or `"davies"` or `"imhof"` or `"farebrother"` (default).}
+\item{method}{Method for p-value calculation: `"satterthwaite"` or `"liu"` or `"davies"` or `"imhof"` or `"hall"` or `"wood"` (default).}
+
+\item{max_eps}{The tolerance used in CompQuadForm to compute the p-values. Default to 1e-8.}
+
+\item{max_iter}{The maximum iteration used in CompQuadForm to compute the p-values. Default to 1e5.}
 }
 \value{
 A `data.table` summarizing Score statistics and p-values separately

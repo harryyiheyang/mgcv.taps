@@ -162,3 +162,70 @@ B=matrixMultiply(fit$vector,t(fit$vector)*d1)
 C=list(w=A,wi=B,eigenfit=fit)
 return(C)
 }
+
+compute_liu_pvalue <- function(q, lambda) {
+c1 <- sum(lambda)
+c2 <- sum(lambda^2)
+c3 <- sum(lambda^3)
+c4 <- sum(lambda^4)
+
+s1 <- c3 / (c2^(3/2))
+s2 <- c4 / c2^2
+muQ <- c1
+sigmaQ <- sqrt(2 * c2)
+tstar <- (q - muQ) / sigmaQ
+
+if (s1^2 > s2) {
+a <- 1 / (s1 - sqrt(s1^2 - s2))
+delta <- s1 * a^3 - a^2
+l <- a^2 - 2 * delta
+} else {
+delta <- 0
+l <- 1 / s2
+a <- sqrt(l)
+}
+
+muX <- l + delta
+sigmaX <- sqrt(2) * a
+pv <- pchisq(tstar * sigmaX + muX, df = l, ncp = delta, lower.tail = FALSE)
+
+return(pv)
+}
+
+compute_hbe_pvalue <- function(q, lambda) {
+kappa1 <- sum(lambda)
+kappa2 <- 2 * sum(lambda^2)
+kappa3 <- 8 * sum(lambda^3)
+nu <- 8 * kappa2^3/ kappa3^2
+Q_star <- (q - kappa1) / sqrt(kappa2)
+x_value <- sqrt(2 * nu) * Q_star + nu
+pv <- pchisq(x_value, df = nu, lower.tail = FALSE)
+return(pv)
+}
+
+compute_wood_pvalue <- function(q, lambda) {
+kappa1 <- sum(lambda)
+kappa2 <- 2 * sum(lambda^2)
+kappa3 <- 8 * sum(lambda^3)
+r1 <- 4 * kappa1 * kappa2^2 + kappa3 * (kappa2 - kappa1^2)
+r2 <- kappa1 * kappa3 - 2 * kappa2^2
+if (r1 <= 0 || r2 <= 0) {
+  warning("Wood F method degenerates, falling back to Satterthwaite")
+  return(compute_sw_pvalue(q, lambda))
+}
+alpha1 <- (2 * kappa1 * (kappa1 * kappa3 + kappa1^2 * kappa2 - kappa2^2)) / r1
+alpha2 <- 3+(2 * kappa2 * (kappa2 + kappa1^2)) / r2
+beta <- r1 / r2
+x_transformed <- (alpha2 / (alpha1 * beta)) * q
+pv <- pf(x_transformed, df1 = 2 * alpha1, df2 = 2 * alpha2, lower.tail = FALSE)
+return(pv)
+}
+
+compute_sw_pvalue <- function(q, lambda) {
+kappa1 <- sum(lambda)
+kappa2 <- 2 * sum(lambda^2)
+k <- 0.5 * kappa1^2 / kappa2
+theta <- kappa2 / kappa1
+pv <- pgamma(q, shape = k, scale = theta, lower.tail = FALSE)
+return(pv)
+}

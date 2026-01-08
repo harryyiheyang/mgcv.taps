@@ -1,7 +1,7 @@
 #' @keywords internal
 #' Operator-based implementation for large-n score test
 #' Used internally by `taps_score_test()` when sample size is large.
-taps_score_test_operator <- function(fit, test.component = 1, null.tol = 1e-10, method = "satterthwaite") {
+taps_score_test_operator <- function(fit, test.component = 1, null.tol = 1e-10, method = "liu",max_eps=1e-16,max_iter=1e5) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
 beta <- fit$coefficients
@@ -129,9 +129,41 @@ BtPB <- crossprod(Bj, N)
 Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
-pv=CompQuadForm::liu(q=u,lambda=lambda)
-nu=sum(lambda)^2/sum(lambda^2)
-test_stat=u/sum(lambda)
+pv <- compute_liu_pvalue(q = u, lambda = lambda)
+nu <- sum(lambda)^2 / sum(lambda^2)
+test_stat <- u / sum(lambda)
+}else if (method == "hall") {
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+pv <- compute_hbe_pvalue(q = u, lambda = lambda)
+nu <- sum(lambda)^2 / sum(lambda^2)
+test_stat <- u / sum(lambda)
+}else if (method == "wood") {
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+pv <- compute_wood_pvalue(q = u, lambda = lambda)
+nu <- sum(lambda)^2 / sum(lambda^2)
+test_stat <- u / sum(lambda)
 }else if(method=="davies"){
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- P_apply(error)
@@ -145,23 +177,7 @@ BtPB <- crossprod(Bj, N)
 Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
-pv=CompQuadForm::davies(q=u,lambda=lambda)$Qq
-nu=sum(lambda)^2/sum(lambda^2)
-test_stat=u/sum(lambda)
-}else if(method=="farebrother"){
-error <- pseudo_response - matrixVectorMultiply(A, alpha)
-r <- P_apply(error)
-Gj_r <- Gj_apply(r)
-u <- sum(r * Gj_r)
-q <- ncol(Bj)
-eig_theta <- matrixsqrt(Thetaj)
-Theta_sqrt <- eig_theta$w
-N <- sapply(1:q, function(i) P_apply(Bj[, i]))
-BtPB <- crossprod(Bj, N)
-Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
-lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
-lambda <- lambda[lambda > 1e-16]
-pv=CompQuadForm::farebrother(q=u,lambda=lambda)$Qq
+pv=CompQuadForm::davies(q=u,lambda=lambda,lim=max_iter,acc=max_eps)$Qq
 nu=sum(lambda)^2/sum(lambda^2)
 test_stat=u/sum(lambda)
 }else if(method=="imhof"){
@@ -177,11 +193,11 @@ BtPB <- crossprod(Bj, N)
 Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
-pv=CompQuadForm::imhof(q=u,lambda=lambda)$Qq
+pv=CompQuadForm::imhof(q=u,lambda=lambda,epsabs=max_eps,epsrel=max_eps,limit=max_iter)$Qq
 nu=sum(lambda)^2/sum(lambda^2)
 test_stat=u/sum(lambda)
 }else {
-stop("method must be either 'satterthwaite' or 'davies' or 'liu' or 'imhof' or 'farebrother'")
+stop("method must be either 'satterthwaite' or 'davies' or 'liu' or 'imhof' or 'hall' or `wood`")
 }
 
 data.table(
