@@ -4,6 +4,7 @@
 taps_score_test_operator <- function(fit, test.component = 1, null.tol = 1e-10, method = "liu",max_eps=1e-16,max_iter=1e5) {
 if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
+if(fit$family$family!="gaulss"){
 beta <- fit$coefficients
 X <- predict(fit, newdata = fit$model, type = "lpmatrix")
 rdf <- fit$df.residual
@@ -22,6 +23,35 @@ W_diag <- 1 / (var_mu * g_prime_mu^2)
 phi0 <- summary(fit)$dispersion
 if (is.null(phi0) || !is.numeric(phi0)) phi0 <- 1
 V_phi <- phi0 / W_diag
+}else{
+beta_full <- fit$coefficients
+X_full <- predict(fit, newdata = fit$model, type = "lpmatrix")
+beta_names <- names(beta_full)
+var_start_idx <- which(beta_names == "(Intercept).1")
+if (length(var_start_idx) == 0) {
+stop("Cannot find '(Intercept).1' in coefficient names. Is this a gaulss model?")
+}
+mean_indices <- 1:(var_start_idx - 1)
+beta <- beta_full[mean_indices]
+X <- X_full[, mean_indices, drop = FALSE]
+rdf <- fit$df.residual
+smooth_terms <- fit$smooth
+mean_smooth_indices <- which(sapply(smooth_terms, function(s) {
+s$first.para < var_start_idx
+}))
+p <- length(mean_smooth_indices)
+smooth_terms <- smooth_terms[mean_smooth_indices]
+phivec <- fit$sp[mean_smooth_indices]
+eta <- fit$linear.predictors[, 1]
+mu <- fit$fitted.values[, 1]
+sigma <- exp(fit$linear.predictors[,2])+fit$coefficients["(Intercept).1"]
+var_mu <- sigma^2
+y <- fit$y
+pseudo_response <- eta + (y - mu)
+W_diag <- 1 / (var_mu)
+phi0 <- 1
+V_phi <- phi0 / W_diag
+}
 
 smooth_index_list <- list()
 random_index_list <- list()
