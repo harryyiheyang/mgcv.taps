@@ -14,7 +14,6 @@
 #' @importFrom mgcv vcov.gam
 #' @importFrom data.table data.table rbindlist
 #' @importFrom ordgam testStat
-#' @importFrom stats pchisq
 #' @import CppMatrix
 #'
 #' @examples

@@ -211,7 +211,7 @@ r1 <- 4 * kappa1 * kappa2^2 + kappa3 * (kappa2 - kappa1^2)
 r2 <- kappa1 * kappa3 - 2 * kappa2^2
 if (r1 <= 0 || r2 <= 0) {
   warning("Wood F method degenerates, falling back to Satterthwaite")
-  return(compute_sw_pvalue(q, lambda))
+  return(compute_liu_pvalue(q, lambda))
 }
 alpha1 <- (2 * kappa1 * (kappa1 * kappa3 + kappa1^2 * kappa2 - kappa2^2)) / r1
 alpha2 <- 3+(2 * kappa2 * (kappa2 + kappa1^2)) / r2
@@ -221,11 +221,4 @@ pv <- pf(x_transformed, df1 = 2 * alpha1, df2 = 2 * alpha2, lower.tail = FALSE)
 return(pv)
 }
 
-compute_sw_pvalue <- function(q, lambda) {
-kappa1 <- sum(lambda)
-kappa2 <- 2 * sum(lambda^2)
-k <- 0.5 * kappa1^2 / kappa2
-theta <- kappa2 / kappa1
-pv <- pgamma(q, shape = k, scale = theta, lower.tail = FALSE)
-return(pv)
-}
+
