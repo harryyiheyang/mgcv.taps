@@ -243,6 +243,22 @@ lambda <- lambda[lambda > 1e-16]
 pv <- compute_wood_pvalue(q = u, lambda = lambda)
 nu <- sum(lambda)^2 / sum(lambda^2)
 test_stat <- u / sum(lambda)
+}else if (method == "farebrother") {
+error <- pseudo_response - matrixVectorMultiply(A, alpha)
+r <- P_apply(error)
+Gj_r <- Gj_apply(r)
+u <- sum(r * Gj_r)
+q <- ncol(Bj)
+eig_theta <- matrixsqrt(Thetaj)
+Theta_sqrt <- eig_theta$w
+N <- sapply(1:q, function(i) P_apply(Bj[, i]))
+BtPB <- crossprod(Bj, N)
+Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
+lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
+lambda <- lambda[lambda > 1e-16]
+pv <- CompQuadForm::farebrother(q=u,lambda=lambda,maxit=max_iter,eps=max_eps)$Qq
+nu <- sum(lambda)^2 / sum(lambda^2)
+test_stat <- u / sum(lambda)
 }else if(method=="davies"){
 error <- pseudo_response - matrixVectorMultiply(A, alpha)
 r <- P_apply(error)
@@ -257,7 +273,7 @@ Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
 lambda <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
 lambda <- lambda[lambda > 1e-16]
 davies_res=CompQuadForm::davies(q=u,lambda=lambda,lim=max_iter,acc=max_eps)
-if (davies_res$ifault != 0 || davies_res$Qq <= 1e-5 || davies_res$Qq > 1.0) {
+if (davies_res$ifault != 0 || davies_res$Qq <= 1e-8 || davies_res$Qq > 1.0) {
   pv <- compute_liu_pvalue(u, lambda) # Fallback to Liu
 } else {
   pv <- davies_res$Qq
