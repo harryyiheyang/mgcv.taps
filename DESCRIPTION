@@ -15,6 +15,7 @@ Imports:
     ordgam,
     Matrix,
     CompQuadForm,
+    survey,
     CppMatrix
 Remotes:
     harryyiheyang/CppMatrix

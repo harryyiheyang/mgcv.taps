@@ -5,14 +5,14 @@ devtools::load_all()
 #set.seed(100)
 #dat <- gamSim(1,n=500,scale=2)
 n=3000*3
-PV=matrix(0,100,5)
+PV=matrix(0,100,6)
 for(i in 1:100){
 X=MASS::mvrnorm(n,rep(0,4),matrix(0.25,4,4)+0.75*diag(4))
 x1=qbeta(pnorm(X[,1]),1.5,1.5)
 x2=qbeta(pnorm(X[,2]),1.5,1.5)
 x3=qbeta(pnorm(X[,3]),1.5,1.5)
 x4=qbeta(pnorm(X[,4]),1.5,1.5)
-f1=x1*2+1.5*cos(pi*x1)
+f1=x1*2
 t2=2*pi*x2
 f2=0.4*sin(t2)+0.8*cos(t2)+1.2*sin(t2)^2+1.6*cos(t2)^3+2*sin(t2)^3
 t3=2*(x3-0.5)
@@ -29,6 +29,7 @@ fit2=taps_score_test(b,test.component=1,method="liu")
 fit3=taps_score_test(b,test.component=1,method="davies")
 fit4=taps_score_test(b,test.component=1,method="hbe")
 fit5=taps_score_test(b,test.component=1,method="wood")
-PV[i,]=c(fit1$smooth.pvalue,fit2$smooth.pvalue,fit3$smooth.pvalue,fit4$smooth.pvalue,fit5$smooth.pvalue)
+fit6=taps_score_test(b,test.component=1,method="saddlepoint")
+PV[i,]=c(fit1$smooth.pvalue,fit2$smooth.pvalue,fit3$smooth.pvalue,fit4$smooth.pvalue,fit5$smooth.pvalue,fit6$smooth.pvalue)
 if(i%%50==0) print(i)
 }

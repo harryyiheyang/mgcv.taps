@@ -20,6 +20,7 @@
 #' @importFrom ordgam testStat
 #' @importFrom Matrix bdiag
 #' @import CppMatrix
+#' @importFrom survey pchisqsum
 #' @import CompQuadForm
 #'
 #' @examples
