@@ -329,7 +329,9 @@ data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Est
     ## s(dist_huai).10   141.150916 9461.6519972 9.880974e-01
 
 This is evidence that median GAM can be used to make the fit more
-robust. The results are as follows:
+robust. Currently, score tests have been extended to partial exponential
+family models, including `cox.ph`, `ocat`, `nb`, `tw`, `betar`, `scat`,
+and `qgam`. The results are as follows:
 
 ``` r
 taps_score_test(fit3)

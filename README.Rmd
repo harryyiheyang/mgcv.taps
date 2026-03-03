@@ -211,7 +211,7 @@ The estimated causal effect (jump at the cutoff) from the median regression is 2
 ```{r}
 data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Estimate^2/SE^2,1,lower.tail=F))
 ```
-This is evidence that median GAM can be used to make the fit more robust. \textbf{Currently, score tests have been extended to partial exponential family models, including `cox.ph`, `ocat`, `nb`, `tw`, `betar`, `scat`, and `qgam`.} The results are as follows:
+This is evidence that median GAM can be used to make the fit more robust. Currently, score tests have been extended to partial exponential family models, including `cox.ph`, `ocat`, `nb`, `tw`, `betar`, `scat`, and `qgam`. The results are as follows:
 
 ```{r}
 taps_score_test(fit3)
