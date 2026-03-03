@@ -2,44 +2,73 @@
 % Please edit documentation in R/taps_score_test.R
 \name{taps_score_test}
 \alias{taps_score_test}
-\title{Perform Score Tests on mgcv Smooth Terms (Null and Penalized Components)}
+\title{Score Test for a Specified Smooth Term in an mgcv GAM/BAM Model}
 \usage{
 taps_score_test(
   fit,
   test.component = 1,
   null.tol = 1e-10,
   method = "davies",
-  max_eps = 1e-06,
-  max_iter = 1e+05
+  max_eps = 1e-08,
+  max_iter = 1e+05,
+  K_per_strata = 20,
+  eps_delta = 1e-12,
+  eps_prob = 1e-12,
+  eps_muprime = 1e-12,
+  eps_mu = 1e-12,
+  n_threads = 1
 )
 }
 \arguments{
-\item{fit}{A fitted `gam` or `bam` model from the `mgcv` package.}
+\item{fit}{A fitted \code{gam} or \code{bam} model object from \pkg{mgcv}.}
 
-\item{test.component}{The index of smooth component to be tested.}
+\item{test.component}{Integer. Index of the smooth term to be tested. Default is \code{1}.}
 
-\item{null.tol}{The tolerance of row norm to detect indices of null space. Default to 1e-10.}
+\item{null.tol}{Numeric. Row-norm threshold used to detect null-space basis
+columns of the penalty matrix when \code{getA} is unavailable. Default is \code{1e-10}.}
 
-\item{method}{Method for p-value calculation: `"satterthwaite"` or `"liu"` or `"davies"` (default) or `"hbe"` or `"wood"`.}
+\item{method}{Character. Method for computing the p-value of the score
+statistic. One of \code{"davies"} (default), \code{"liu"}, \code{"hbe"},
+\code{"wood"}, \code{"satterthwaite"}, or \code{"saddlepoint"}.}
 
-\item{max_eps}{The tolerance used in CompQuadForm to compute the p-values. Default to 1e-6.}
+\item{max_eps}{Numeric. Absolute error tolerance passed to
+\code{CompQuadForm::davies}. Default is \code{1e-8}.}
 
-\item{max_iter}{The maximum iteration used in CompQuadForm to compute the p-values. Default to 1e5.}
+\item{max_iter}{Integer. Maximum number of integration steps passed to
+\code{CompQuadForm::davies}. Default is \code{1e5}.}
+
+\item{K_per_strata}{Integer. Passed to \code{extract_pseudo_response}. Default is \code{20}.}
+
+\item{eps_delta}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
+
+\item{eps_prob}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
+
+\item{eps_muprime}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
+
+\item{eps_mu}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
+
+\item{n_threads}{Integer. Number of threads passed to \code{extract_pseudo_response}. Default is \code{1}.}
 }
 \value{
-A `data.table` summarizing Score statistics and p-values separately
-        for penalized (smooth) components of each term.
+A \code{data.table} with three columns:
+  \describe{
+    \item{smooth.term}{Label of the tested smooth term.}
+    \item{smooth.pvalue}{Score test p-value.}
+    \item{method}{The p-value method used.}
+  }
 }
 \description{
-This function takes a fitted mgcv `gam` or `bam` object,
-then performs Score test on the null (unpenalized/fixed) and penalized
-(smooth) components of each smooth term.
-It returns a clear summary as a `data.table`.
+Computes a score test for the penalized (smooth) component of a selected
+smooth term in a fitted \code{gam} or \code{bam} object from the \pkg{mgcv}
+package. The remaining smooth terms are treated as nuisance components and
+are profiled out via a structured covariance approximation. P-values can be
+computed by several methods for quadratic forms in normal variables.
 }
 \examples{
 \dontrun{
-fit <- gam(y ~ s(x0) + s(x1), data=dat, method="REML")
-taps_score_test(fit)
+library(mgcv)
+fit <- gam(y ~ s(x0) + s(x1), data = dat, method = "REML")
+taps_score_test(fit, test.component = 1)
 }
 
 }

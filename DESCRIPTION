@@ -11,12 +11,17 @@ LazyData: true
 RoxygenNote: 7.3.3
 Imports:
     data.table,
+    Rcpp,
+    RcppArmadillo,
     mgcv,
     ordgam,
     Matrix,
     CompQuadForm,
     survey,
     CppMatrix
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
 Remotes:
     harryyiheyang/CppMatrix
 ORCID: 0000-0001-6563-3579

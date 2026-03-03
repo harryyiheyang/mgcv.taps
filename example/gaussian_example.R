@@ -1,12 +1,11 @@
-require(mgcv)
+require(mgcv)          # 1. mgcv 先加载，命名空间就位
 library(devtools)
 document()
-devtools::load_all()
 #set.seed(100)
 #dat <- gamSim(1,n=500,scale=2)
-n=3000*3
-PV=matrix(0,100,6)
-for(i in 1:100){
+n=500
+PV=matrix(0,200,6)
+for(i in 1:200){
 X=MASS::mvrnorm(n,rep(0,4),matrix(0.25,4,4)+0.75*diag(4))
 x1=qbeta(pnorm(X[,1]),1.5,1.5)
 x2=qbeta(pnorm(X[,2]),1.5,1.5)
@@ -33,3 +32,4 @@ fit6=taps_score_test(b,test.component=1,method="saddlepoint")
 PV[i,]=c(fit1$smooth.pvalue,fit2$smooth.pvalue,fit3$smooth.pvalue,fit4$smooth.pvalue,fit5$smooth.pvalue,fit6$smooth.pvalue)
 if(i%%50==0) print(i)
 }
+qqman::qq(PV[,3])
