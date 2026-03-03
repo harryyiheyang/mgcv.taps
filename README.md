@@ -105,10 +105,9 @@ function `mgcv::testStat` ([Wood,
 Alternatively, one can also perform a score test variance component
 using `taps_score_test` ([Zhang and Lin,
 2003](https://doi.org/10.1093/biostatistics/4.1.57)). We use
-`CompQuadForm::farebrother` as the default method to compute the
-p-value.
+`CompQuadForm::davies` as the default method to compute the p-value.
 
-    taps_score_test(fit,test.component=1,method="farebrother)
+    taps_score_test(fit,test.component=1,method="davies)
 
 Both can be used to formally test the parametric structure encoded in
 `A`. In these two test functions, `test.component` refers to the index
@@ -209,12 +208,12 @@ We conduct a score test and Wald test to assess whether a more flexible
 model is necessary.
 
 ``` r
-taps_score_test(fit1)[, 1:4]
+taps_score_test(fit1)
 ```
 
-    ##     smooth.term smooth.df smooth.stat smooth.pvalue
-    ##          <char>     <num>       <num>         <num>
-    ## 1: s(dist_huai)  2.182325   0.7329975     0.4840141
+    ##     smooth.term smooth.pvalue method
+    ##          <char>         <num> <char>
+    ## 1: s(dist_huai)     0.4840141 davies
 
 ``` r
 taps_wald_test(fit1)
@@ -234,7 +233,8 @@ We then fit a model using the parametric form `A %*% alpha` to estimate
 the causal effect directly.
 
 ``` r
-X=linearity_discontinuity(Huai_River$dist_huai, para = 0)
+X=cbind(Huai_River$dist_huai, pmax(Huai_River$dist_huai,0))
+colnames(X)=c("distance","max(distance,0)")
 fit2 = gam(pm10 ~ X, data = Huai_River)
 summary(fit2)
 ```
@@ -247,19 +247,16 @@ summary(fit2)
     ## pm10 ~ X
     ## 
     ## Parametric coefficients:
-    ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  52.8631     2.8094  18.817  < 2e-16 ***
-    ## XIntercept   52.8631     2.8094  18.817  < 2e-16 ***
-    ## Xx            4.3624     0.9961   4.379 2.22e-05 ***
-    ## X0_jump      32.1029     8.1151   3.956 0.000117 ***
-    ## X0_slope     -6.8941     1.2655  -5.448 2.04e-07 ***
+    ##                  Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)       121.116      4.246  28.523  < 2e-16 ***
+    ## Xdistance           6.610      0.857   7.714 1.54e-12 ***
+    ## Xmax(distance,0)   -7.305      1.321  -5.530 1.38e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## 
-    ## Rank: 4/5
-    ## R-sq.(adj) =  0.372   Deviance explained = 38.4%
-    ## GCV = 833.14  Scale est. = 811.5     n = 154
+    ## R-sq.(adj) =  0.311   Deviance explained =   32%
+    ## GCV = 907.91  Scale est. = 890.22    n = 154
 
 The estimated jump at `dist_huai = 0` is 32.10. This estimate can also
 be extracted from `fit1`:
@@ -332,8 +329,15 @@ data.frame(Estimate=fit3$coefficients,SE=summary(fit3)$se)%>%mutate(P=pchisq(Est
     ## s(dist_huai).10   141.150916 9461.6519972 9.880974e-01
 
 This is evidence that median GAM can be used to make the fit more
-robust. Currently, score tests are only supported for exponential family
-models. Therefore, we use the Wald test for inference:
+robust. The results are as follows:
+
+``` r
+taps_score_test(fit3)
+```
+
+    ##     smooth.term smooth.pvalue method
+    ##          <char>         <num> <char>
+    ## 1: s(dist_huai)     0.2919237 davies
 
 ``` r
 taps_wald_test(fit3)
@@ -346,7 +350,7 @@ taps_wald_test(fit3)
     ##           <num>         <num>
     ## 1:   0.04167112     0.8385246
 
-The results continue to support the linearity discontinuity structure.
+They continue to support the linearity discontinuity structure.
 
 ## License
 
