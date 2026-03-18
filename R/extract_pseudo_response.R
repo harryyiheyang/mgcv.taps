@@ -27,8 +27,59 @@ extract_pseudo_response <- function(fit, ...) {
     W_diag  <- cpp_result$w_star
     phi0    <- 1.0
     valid_idx <- !is.na(pseudo_response) & W_diag > 0
+  } else if (grepl("^cnorm", fit$family$family)) {
+    eta <- fit$linear.predictors
+    censor_attr <- attr(fit$y, "censor")
+    y_lower <- ifelse(censor_attr == -Inf, -Inf, fit$y)
+    y_upper <- ifelse(censor_attr == -Inf, fit$y, censor_attr)
 
-  } else if (fit$family$family == "Cox PH") {
+    sig <- tryCatch(fit$family$getTheta(TRUE), error = function(e) sqrt(fit$sig2))
+
+    u_L <- (y_lower - eta) / sig
+    u_U <- (y_upper - eta) / sig
+
+    l_prime <- numeric(length(eta))
+    W_diag  <- numeric(length(eta))
+
+    idx_exact <- which(y_lower == y_upper)
+    if (length(idx_exact) > 0) {
+      l_prime[idx_exact] <- u_L[idx_exact] / sig
+      W_diag[idx_exact]  <- 1 / (sig^2)
+    }
+
+    idx_rc <- which(y_upper == Inf)
+    if (length(idx_rc) > 0) {
+      u <- u_L[idx_rc]
+      h_u <- exp(dnorm(u, log = TRUE) - pnorm(u, lower.tail = FALSE, log.p = TRUE))
+      l_prime[idx_rc] <- h_u / sig
+      W_diag[idx_rc]  <- h_u * (h_u - u) / (sig^2)
+    }
+
+    idx_lc <- which(y_lower == -Inf)
+    if (length(idx_lc) > 0) {
+      u <- u_U[idx_lc]
+      g_u <- exp(dnorm(u, log = TRUE) - pnorm(u, log.p = TRUE))
+      l_prime[idx_lc] <- -g_u / sig
+      W_diag[idx_lc]  <- g_u * (u + g_u) / (sig^2)
+    }
+
+    idx_int <- which(y_lower != y_upper & y_upper != Inf & y_lower != -Inf)
+    if (length(idx_int) > 0) {
+      u1 <- u_L[idx_int]
+      u2 <- u_U[idx_int]
+      p_diff <- pmax(pnorm(u2) - pnorm(u1), 1e-15)
+      d1 <- dnorm(u1)
+      d2 <- dnorm(u2)
+      term1 <- (d1 - d2) / p_diff
+      term2 <- (u1 * d1 - u2 * d2) / p_diff
+      l_prime[idx_int] <- term1 / sig
+      W_diag[idx_int]  <- (term1^2 - term2) / (sig^2)
+    }
+
+    pseudo_response <- eta + l_prime / W_diag
+    phi0 <- 1.0
+    valid_idx <- !is.na(pseudo_response) & W_diag > 1e-12
+  }else if (fit$family$family == "Cox PH") {
     eta    <- fit$linear.predictors
     time   <- fit$y[, 1]
     status <- fit$y[, 2]
