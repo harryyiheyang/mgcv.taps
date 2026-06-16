@@ -88,10 +88,10 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
     S_matrix <- s$S[[1]]
 
     if (is.null(s$getA) == 0) {
-      detected_null_indices <- indices[1:reported_null_dim]
+      detected_null_indices <- if (reported_null_dim > 0) indices[seq_len(reported_null_dim)] else integer(0)
     } else {
-      col_norms <- apply(S_matrix, 2, function(x) sqrt(sum(x^2)))
-      detected_null_indices <- which(col_norms < null.tol)
+      col_norms <- sqrt(colSums(S_matrix^2))
+      detected_null_indices <- indices[which(col_norms < null.tol)]
     }
 
     smooth_indices <- setdiff(indices, detected_null_indices)
@@ -106,7 +106,11 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
       Bj       <- X[, indices]
       Thetaj   <- matrixGeneralizedInverse(S_matrix / norm(S_matrix, "f"))
       Gj_apply <- function(v) {
-        matrixVectorMultiply(Bj, matrixVectorMultiply(Thetaj, matrixVectorMultiply(t(Bj), v)))
+        v_is_matrix <- is.matrix(v)
+        v_mat       <- if (v_is_matrix) v else matrix(v, ncol = 1)
+        Bt_v        <- matrixMultiply(Bj, v_mat, transA = TRUE)
+        out         <- matrixMultiply(Bj, matrixMultiply(Thetaj, Bt_v))
+        if (v_is_matrix) out else as.vector(out)
       }
       random_index_list[[i]] <- smooth_indices
     }
@@ -123,29 +127,32 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
   alpha    <- beta[fixed_index_vec]
   B_extend <- X[, smooth_index_vec]
   S_All    <- as.matrix(bdiag(S_list))
-  XtX      <- matrixMultiply(t(B_extend), B_extend * (1 / V_phi))
+  XtX      <- matrixMultiply(B_extend, B_extend * (1 / V_phi), transA = TRUE)
   C        <- matrixInverse(XtX + S_All)
 
   Vinv_apply <- function(v) {
-    if (is.matrix(v)) {
-      return(apply(v, 2, function(col) Vinv_apply(col)))
-    }
-    part1   <- v / V_phi
-    Bt_v    <- matrixVectorMultiply(t(B_extend), part1)
-    C_Bt_v  <- matrixVectorMultiply(C, Bt_v)
-    part2   <- matrixVectorMultiply(B_extend, C_Bt_v)
-    part1 - part2 / V_phi
+    v_is_matrix <- is.matrix(v)
+    v_mat       <- if (v_is_matrix) v else matrix(v, ncol = 1)
+    part1       <- v_mat / V_phi
+    Bt_v        <- matrixMultiply(B_extend, part1, transA = TRUE)
+    C_Bt_v      <- matrixMultiply(C, Bt_v)
+    part2       <- matrixMultiply(B_extend, C_Bt_v)
+    out         <- part1 - part2 / V_phi
+    if (v_is_matrix) out else as.vector(out)
   }
 
-  Vinv_A      <- sapply(1:ncol(A), function(j) Vinv_apply(A[, j]))
-  XtVinvX     <- matrixMultiply(t(A), Vinv_A)
+  Vinv_A      <- Vinv_apply(A)
+  XtVinvX     <- matrixMultiply(A, Vinv_A, transA = TRUE)
   XtVinvX_inv <- matrixGeneralizedInverse(XtVinvX)
 
   P_apply <- function(v) {
-    Vinv_v       <- Vinv_apply(v)
-    AVinv_v      <- matrixVectorMultiply(t(A), Vinv_v)
-    solve_middle <- matrixVectorMultiply(XtVinvX_inv, AVinv_v)
-    Vinv_v - matrixVectorMultiply(Vinv_A, solve_middle)
+    v_is_matrix  <- is.matrix(v)
+    v_mat        <- if (v_is_matrix) v else matrix(v, ncol = 1)
+    Vinv_v       <- Vinv_apply(v_mat)
+    AVinv_v      <- matrixMultiply(A, Vinv_v, transA = TRUE)
+    solve_middle <- matrixMultiply(XtVinvX_inv, AVinv_v)
+    out          <- Vinv_v - matrixMultiply(Vinv_A, solve_middle)
+    if (v_is_matrix) out else as.vector(out)
   }
 
   if (method == "satterthwaite") {
@@ -178,8 +185,8 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
     q      <- ncol(Bj)
     eig_theta <- matrixsqrt(Thetaj)
     Theta_sqrt <- eig_theta$w
-    N      <- sapply(1:q, function(i) P_apply(Bj[, i]))
-    BtPB   <- crossprod(Bj, N)
+    N      <- P_apply(Bj)
+    BtPB   <- matrixMultiply(Bj, N, transA = TRUE)
     Q_small <- matrixListProduct(list(Theta_sqrt, BtPB, Theta_sqrt))
     lambda  <- eigen(Q_small, symmetric = TRUE, only.values = TRUE)$values
     lambda  <- lambda[lambda > 1e-15]

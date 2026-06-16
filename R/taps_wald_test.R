@@ -53,11 +53,11 @@ S_matrix <- s$S[[1]]  # Extract first penalty matrix for the term
 
 # Take intersection of zero rows and columns, then map back to indices
 if(is.null(s$getA)==0){
-detected_null_indices <- indices[1:reported_null_dim]
+detected_null_indices <- if (reported_null_dim > 0) indices[seq_len(reported_null_dim)] else integer(0)
 detect_method="reported"
 }else{
-col_norms <- apply(S_matrix, 2, function(x) sqrt(sum(x^2)))
-detected_null_indices=which(col_norms<null.tol)
+col_norms <- sqrt(colSums(S_matrix^2))
+detected_null_indices=indices[which(col_norms<null.tol)]
 detect_method="detected"
 }
 

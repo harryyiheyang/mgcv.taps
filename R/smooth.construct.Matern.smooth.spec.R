@@ -78,11 +78,11 @@ smooth.construct.Matern.smooth.spec <- function(object, data, knots) {
   C <- cbind(A, B)
   Omega=as.matrix(bdiag(diag(2)*0,Omega))
   # QR decomposition
-  G <- matrixMultiply(t(C), A)/n
+  G <- matrixMultiply(C, A, transA = TRUE)/n
   fitqr <- qr(G)
   Q <- qr.Q(fitqr, complete = TRUE)[, (m + 1):nrow(G), drop = FALSE]
   B = matrixMultiply(C,Q)
-  fiteigen=matrixEigen(matrixMultiply(t(B),B))
+  fiteigen=matrixEigen(matrixMultiply(B,B, transA = TRUE))
   v=fiteigen$vectors[,1:(object$bs.dim-1)]
   B=matrixMultiply(B,v)
   X=cbind(A,B)

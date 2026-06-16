@@ -104,11 +104,11 @@ Omega=fit_design$DK
 C <- cbind(A, B)
 Omega=as.matrix(bdiag(diag(m)*0,Omega))
 # QR decomposition
-G <- matrixMultiply(t(C), A)/n
+G <- matrixMultiply(C, A, transA = TRUE)/n
 fitqr <- qr(G)
 Q <- qr.Q(fitqr, complete = TRUE)[, (m + 1):nrow(G), drop = FALSE]
 B = matrixMultiply(C,Q)
-fiteigen=matrixEigen(matrixMultiply(t(B),B))
+fiteigen=matrixEigen(matrixMultiply(B,B, transA = TRUE))
 v=fiteigen$vectors[,1:(object$bs.dim-m+1)]
 B=matrixMultiply(B,v)
 X=cbind(A,B)
