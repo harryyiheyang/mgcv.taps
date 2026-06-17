@@ -67,7 +67,17 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
   X            <- predict(fit, newdata = fit$model, type = "lpmatrix")
   smooth_terms <- fit$smooth
   p            <- length(smooth_terms)
-  phivec       <- fit$sp
+
+  if (p < 1L) stop("fit must contain at least one smooth term.")
+  if (length(test.component) != 1L || is.na(test.component)) {
+    stop("test.component must be a valid smooth-term index.")
+  }
+  test_component_int <- suppressWarnings(as.integer(test.component))
+  if (is.na(test_component_int) || test.component != test_component_int ||
+      test_component_int < 1L || test_component_int > p) {
+    stop("test.component must be a valid smooth-term index.")
+  }
+  test.component <- test_component_int
 
   if (!is.null(res$valid_idx)) {
     idx             <- res$valid_idx
@@ -81,11 +91,44 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
   random_index_list <- list()
   S_list            <- list()
 
-  for (i in 1:p) {
+  get_scaled_penalty <- function(s) {
+    if (is.null(s$first.sp) || is.null(s$last.sp)) {
+      stop("Penalized smooth has no smoothing-parameter index.")
+    }
+    sp_idx <- seq.int(s$first.sp, s$last.sp)
+    if (length(sp_idx) != length(s$S)) {
+      stop("Penalized smooth has inconsistent penalty and smoothing-parameter indexes.")
+    }
+    sp <- fit$sp[sp_idx]
+    if (anyNA(sp)) {
+      stop("Penalized smooth has missing smoothing-parameter values.")
+    }
+    Reduce(`+`, Map(function(S_matrix, sp_value) S_matrix * sp_value / phi0,
+                    s$S, sp))
+  }
+
+  for (i in seq_len(p)) {
     s       <- smooth_terms[[i]]
     indices <- s$first.para:s$last.para
     reported_null_dim <- s$null.space.dim
-    S_matrix <- s$S[[1]]
+    is_zero_rank <- !is.null(s$rank) && isTRUE(all(s$rank == 0))
+    is_fixed_smooth <- isTRUE(s$fixed) || is.null(s$S) || length(s$S) == 0 || is_zero_rank
+
+    if (i == test.component && is_fixed_smooth) {
+      stop("test.component must be a penalized smooth with fx = FALSE.")
+    }
+
+    if (is_fixed_smooth) next
+
+    S_matrix <- get_scaled_penalty(s)
+    S_norm <- norm(S_matrix, "f")
+
+    if (!is.finite(S_norm) || S_norm <= 0) {
+      if (i == test.component) {
+        stop("test.component must have a non-zero penalty matrix.")
+      }
+      next
+    }
 
     if (is.null(s$getA) == 0) {
       detected_null_indices <- if (reported_null_dim > 0) indices[seq_len(reported_null_dim)] else integer(0)
@@ -99,12 +142,12 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
     if (i != test.component) {
       smooth_index_list[[i]] <- indices
       random_index_list[[i]] <- smooth_indices
-      S_list[[i]]            <- S_matrix * phivec[i] / phi0
+      S_list[[i]]            <- S_matrix
     }
 
     if (i == test.component) {
       Bj       <- X[, indices]
-      Thetaj   <- matrixGeneralizedInverse(S_matrix / norm(S_matrix, "f"))
+      Thetaj   <- matrixGeneralizedInverse(S_matrix / S_norm)
       Gj_apply <- function(v) {
         v_is_matrix <- is.matrix(v)
         v_mat       <- if (v_is_matrix) v else matrix(v, ncol = 1)
