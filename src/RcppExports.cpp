@@ -11,26 +11,17 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// cox_cloglog_folded
-List cox_cloglog_folded(NumericVector time, IntegerVector status, IntegerVector strata, NumericVector eta, List bh_time_list, List bh_hazard_list, IntegerVector K_per_strata, double eps_delta, double eps_prob, double eps_muprime, double clip_eta_min, double clip_eta_max, int n_threads);
-RcppExport SEXP _mgcv_taps_cox_cloglog_folded(SEXP timeSEXP, SEXP statusSEXP, SEXP strataSEXP, SEXP etaSEXP, SEXP bh_time_listSEXP, SEXP bh_hazard_listSEXP, SEXP K_per_strataSEXP, SEXP eps_deltaSEXP, SEXP eps_probSEXP, SEXP eps_muprimeSEXP, SEXP clip_eta_minSEXP, SEXP clip_eta_maxSEXP, SEXP n_threadsSEXP) {
+// cox_peto_suffstat
+Rcpp::List cox_peto_suffstat(const arma::mat& X, const arma::vec& eta, const arma::vec& time, const arma::ivec& status);
+RcppExport SEXP _mgcv_taps_cox_peto_suffstat(SEXP XSEXP, SEXP etaSEXP, SEXP timeSEXP, SEXP statusSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type time(timeSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type status(statusSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type strata(strataSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type eta(etaSEXP);
-    Rcpp::traits::input_parameter< List >::type bh_time_list(bh_time_listSEXP);
-    Rcpp::traits::input_parameter< List >::type bh_hazard_list(bh_hazard_listSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type K_per_strata(K_per_strataSEXP);
-    Rcpp::traits::input_parameter< double >::type eps_delta(eps_deltaSEXP);
-    Rcpp::traits::input_parameter< double >::type eps_prob(eps_probSEXP);
-    Rcpp::traits::input_parameter< double >::type eps_muprime(eps_muprimeSEXP);
-    Rcpp::traits::input_parameter< double >::type clip_eta_min(clip_eta_minSEXP);
-    Rcpp::traits::input_parameter< double >::type clip_eta_max(clip_eta_maxSEXP);
-    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(cox_cloglog_folded(time, status, strata, eta, bh_time_list, bh_hazard_list, K_per_strata, eps_delta, eps_prob, eps_muprime, clip_eta_min, clip_eta_max, n_threads));
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type time(timeSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type status(statusSEXP);
+    rcpp_result_gen = Rcpp::wrap(cox_peto_suffstat(X, eta, time, status));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -54,7 +45,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mgcv_taps_cox_cloglog_folded", (DL_FUNC) &_mgcv_taps_cox_cloglog_folded, 13},
+    {"_mgcv_taps_cox_peto_suffstat", (DL_FUNC) &_mgcv_taps_cox_peto_suffstat, 4},
     {"_mgcv_taps_ocat_folded", (DL_FUNC) &_mgcv_taps_ocat_folded, 8},
     {NULL, NULL, 0}
 };

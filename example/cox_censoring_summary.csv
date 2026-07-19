@@ -1,0 +1,3 @@
+"scenario","n","simulations","censoring_distribution","censoring_rate","mean_censoring_fraction","sd_censoring_fraction"
+"null",1000,500,"exponential",0.704,0.511012,0.0160947798953499
+"alternative",1000,500,"exponential",0.704,0.487302,0.0152580605853317

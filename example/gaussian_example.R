@@ -1,35 +1,66 @@
-require(mgcv)          # 1. mgcv 先加载，命名空间就位
-library(devtools)
-document()
-#set.seed(100)
-#dat <- gamSim(1,n=500,scale=2)
-n=500
-PV=matrix(0,200,6)
-for(i in 1:200){
-X=MASS::mvrnorm(n,rep(0,4),matrix(0.25,4,4)+0.75*diag(4))
-x1=qbeta(pnorm(X[,1]),1.5,1.5)
-x2=qbeta(pnorm(X[,2]),1.5,1.5)
-x3=qbeta(pnorm(X[,3]),1.5,1.5)
-x4=qbeta(pnorm(X[,4]),1.5,1.5)
-f1=x1*2
-t2=2*pi*x2
-f2=0.4*sin(t2)+0.8*cos(t2)+1.2*sin(t2)^2+1.6*cos(t2)^3+2*sin(t2)^3
-t3=2*(x3-0.5)
-f3=3*sin(3*t3)+6*exp(-36*t3^2)
-f4=0*x4
-eta=f1+f2+f3
-y=1+eta+rnorm(n,0,1)
-dat=data.frame(x0=x1,x1=x2,x2=x3,x3=x4,y=y)
+library(mgcv)
+devtools::load_all(".")
 
-b<-bam(y~s(x0,bs="AMatern")+s(x1,bs="cr")+s(x2,bs="cr")+s(x3,bs="cr"),data=dat,family="gaussian",method="REML")
-fitb=summary(b)
-fit1=taps_score_test(b,test.component=1,method="satterthwaite")
-fit2=taps_score_test(b,test.component=1,method="liu")
-fit3=taps_score_test(b,test.component=1,method="davies")
-fit4=taps_score_test(b,test.component=1,method="hbe")
-fit5=taps_score_test(b,test.component=1,method="wood")
-fit6=taps_score_test(b,test.component=1,method="saddlepoint")
-PV[i,]=c(fit1$smooth.pvalue,fit2$smooth.pvalue,fit3$smooth.pvalue,fit4$smooth.pvalue,fit5$smooth.pvalue,fit6$smooth.pvalue)
-if(i%%50==0) print(i)
+n <- 1000L
+nsim <- 100L
+pv_null <- numeric(nsim)
+pv_alt <- numeric(nsim)
+
+# NULL seeds: 110001--110100
+for (i in seq_len(nsim)) {
+  set.seed(110000L + i)
+  X <- MASS::mvrnorm(n, rep(0, 4), matrix(0.25, 4, 4) + 0.75 * diag(4))
+  x0 <- qbeta(pnorm(X[, 1]), 1.5, 1.5)
+  x1 <- qbeta(pnorm(X[, 2]), 1.5, 1.5)
+  x2 <- qbeta(pnorm(X[, 3]), 1.5, 1.5)
+  x3 <- qbeta(pnorm(X[, 4]), 1.5, 1.5)
+  f1 <- 2 * x0
+  t2 <- 2 * pi * x1
+  f2 <- 0.4 * sin(t2) + 0.8 * cos(t2) + 1.2 * sin(t2)^2 +
+    1.6 * cos(t2)^3 + 2 * sin(t2)^3
+  t3 <- 2 * (x2 - 0.5)
+  f3 <- 3 * sin(3 * t3) + 6 * exp(-36 * t3^2)
+  y <- 1 + f1 + f2 + f3 + rnorm(n)
+  dat <- data.frame(x0, x1, x2, x3, y)
+  b <- bam(
+    y ~ s(x0, bs = "AMatern") + s(x1, bs = "cr") +
+      s(x2, bs = "cr") + s(x3, bs = "cr"),
+    data = dat, family = "gaussian", method = "REML"
+  )
+  pv_null[i] <- taps_score_test(
+    b, test.component = 1, method = "davies"
+  )$smooth.pvalue
 }
-qqman::qq(PV[,3])
+
+# Alternative seeds: 120001--120100
+for (i in seq_len(nsim)) {
+  set.seed(120000L + i)
+  X <- MASS::mvrnorm(n, rep(0, 4), matrix(0.25, 4, 4) + 0.75 * diag(4))
+  x0 <- qbeta(pnorm(X[, 1]), 1.5, 1.5)
+  x1 <- qbeta(pnorm(X[, 2]), 1.5, 1.5)
+  x2 <- qbeta(pnorm(X[, 3]), 1.5, 1.5)
+  x3 <- qbeta(pnorm(X[, 4]), 1.5, 1.5)
+  f1 <- smoothed_linearity(x0, 0.5)
+  t2 <- 2 * pi * x1
+  f2 <- 0.4 * sin(t2) + 0.8 * cos(t2) + 1.2 * sin(t2)^2 +
+    1.6 * cos(t2)^3 + 2 * sin(t2)^3
+  t3 <- 2 * (x2 - 0.5)
+  f3 <- 3 * sin(3 * t3) + 6 * exp(-36 * t3^2)
+  y <- 1 + f1 + f2 + f3 + rnorm(n)
+  dat <- data.frame(x0, x1, x2, x3, y)
+  b <- bam(
+    y ~ s(x0, bs = "AMatern") + s(x1, bs = "cr") +
+      s(x2, bs = "cr") + s(x3, bs = "cr"),
+    data = dat, family = "gaussian", method = "REML"
+  )
+  pv_alt[i] <- taps_score_test(
+    b, test.component = 1, method = "davies"
+  )$smooth.pvalue
+}
+
+out <- list(null = pv_null, alternative = pv_alt)
+if (!identical(lengths(out), c(null = 100L, alternative = 100L)) ||
+    any(!is.finite(unlist(out, use.names = FALSE)))) {
+  stop("Gaussian simulation must produce 100 finite p-values per scenario.")
+}
+saveRDS(out, file.path("example", "gaussian_pvalues.rds"))

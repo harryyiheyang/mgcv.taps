@@ -11,10 +11,6 @@ taps_score_test(
   method = "davies",
   max_eps = 1e-08,
   max_iter = 1e+05,
-  K_per_strata = 20,
-  eps_delta = 1e-12,
-  eps_prob = 1e-12,
-  eps_muprime = 1e-12,
   eps_mu = 1e-12,
   n_threads = 1
 )
@@ -36,14 +32,6 @@ statistic. One of \code{"davies"} (default), \code{"liu"}, \code{"hbe"},
 
 \item{max_iter}{Integer. Maximum number of integration steps passed to
 \code{CompQuadForm::davies}. Default is \code{1e5}.}
-
-\item{K_per_strata}{Integer. Passed to \code{extract_pseudo_response}. Default is \code{20}.}
-
-\item{eps_delta}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
-
-\item{eps_prob}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
-
-\item{eps_muprime}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
 
 \item{eps_mu}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
 

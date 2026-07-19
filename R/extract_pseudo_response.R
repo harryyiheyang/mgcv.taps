@@ -79,49 +79,6 @@ extract_pseudo_response <- function(fit, ...) {
     pseudo_response <- eta + l_prime / W_diag
     phi0 <- 1.0
     valid_idx <- !is.na(pseudo_response) & W_diag > 1e-12
-  }else if (fit$family$family == "Cox PH") {
-    eta    <- fit$linear.predictors
-    time   <- fit$y[, 1]
-    status <- fit$y[, 2]
-    strata <- if (!is.null(fit$model$strata)) as.integer(fit$model$strata) else rep(1L, length(time))
-
-    strata_levels <- sort(unique(strata))
-    bh_time_list   <- vector("list", length(strata_levels))
-    bh_hazard_list <- vector("list", length(strata_levels))
-
-    for (s in seq_along(strata_levels)) {
-      mask     <- strata == strata_levels[s]
-      time_s   <- time[mask]; status_s <- status[mask]; eta_s <- eta[mask]
-      u_times  <- sort(unique(time_s[status_s == 1]))
-      if (length(u_times) == 0) { bh_time_list[[s]] <- numeric(0); bh_hazard_list[[s]] <- numeric(0); next }
-      exp_eta_s <- exp(eta_s)
-      cumhaz <- numeric(length(u_times))
-      for (j in seq_along(u_times)) {
-        d_j  <- sum(status_s == 1 & time_s == u_times[j])
-        risk <- sum(exp_eta_s[time_s >= u_times[j]])
-        cumhaz[j] <- (if (j == 1) 0 else cumhaz[j-1]) + if (risk > 0) d_j / risk else 0
-      }
-      bh_time_list[[s]] <- u_times; bh_hazard_list[[s]] <- cumhaz
-    }
-
-    cpp_result <- cox_cloglog_folded(
-      time           = time,
-      status         = as.integer(status),
-      strata         = strata,
-      eta            = eta,
-      bh_time_list   = bh_time_list,
-      bh_hazard_list = bh_hazard_list,
-      K_per_strata   = args$K_per_strata   %||% 20,
-      eps_delta      = args$eps_delta      %||% 1e-12,
-      eps_prob       = args$eps_prob       %||% 1e-12,
-      eps_muprime    = args$eps_muprime    %||% 1e-12,
-      n_threads      = args$n_threads      %||% 1
-    )
-    pseudo_response <- cpp_result$z_star
-    W_diag  <- cpp_result$w_star
-    phi0    <- 1.0
-    valid_idx <- !is.na(pseudo_response) & W_diag > 0
-
   } else {
     eta    <- fit$linear.predictors
     mu     <- fit$fitted.values

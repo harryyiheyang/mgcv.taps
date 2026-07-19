@@ -17,10 +17,6 @@
 #'   \code{CompQuadForm::davies}. Default is \code{1e-8}.
 #' @param max_iter Integer. Maximum number of integration steps passed to
 #'   \code{CompQuadForm::davies}. Default is \code{1e5}.
-#' @param K_per_strata Integer. Passed to \code{extract_pseudo_response}. Default is \code{20}.
-#' @param eps_delta Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
-#' @param eps_prob Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
-#' @param eps_muprime Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
 #' @param eps_mu Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
 #' @param n_threads Integer. Number of threads passed to \code{extract_pseudo_response}. Default is \code{1}.
 #'
@@ -49,14 +45,32 @@
 #' @export
 taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
                             method = "davies", max_eps = 1e-8, max_iter = 1e5,
-                            K_per_strata = 20, eps_delta = 1e-12,
-                            eps_prob = 1e-12, eps_muprime = 1e-12,
                             eps_mu = 1e-12, n_threads = 1) {
   if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
+  if (identical(fit$family$family, "Cox PH")) {
+    return(taps_score_test_cox(
+      fit = fit, test.component = test.component, null.tol = null.tol,
+      method = method, max_eps = max_eps, max_iter = max_iter
+    ))
+  }
+
+  if (grepl("^zero inflated poisson", tolower(fit$family$family))) {
+    return(taps_score_test_zip(
+      fit = fit, test.component = test.component, null.tol = null.tol,
+      method = method, max_eps = max_eps, max_iter = max_iter
+    ))
+  }
+
+  if (grepl("^beta regression", tolower(fit$family$family)) &&
+      isTRUE(fit$family$n.theta > 0L)) {
+    return(taps_score_test_betar(
+      fit = fit, test.component = test.component, null.tol = null.tol,
+      method = method, max_eps = max_eps, max_iter = max_iter
+    ))
+  }
+
   res <- extract_pseudo_response(fit,
-                                 K_per_strata = K_per_strata, eps_delta = eps_delta,
-                                 eps_prob = eps_prob, eps_muprime = eps_muprime,
                                  eps_mu = eps_mu, n_threads = n_threads)
 
   pseudo_response <- res$pseudo_response
