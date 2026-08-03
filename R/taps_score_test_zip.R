@@ -188,7 +188,12 @@ taps_score_test_zip <- function(fit, test.component = 1,
   }
 
   gamma_null <- offset + matrixVectorMultiply(X_null, b_null)
-  Z <- X[, fixed_indices, drop = FALSE]
+  # The nuisance block holds every coefficient fitted by the null model, so the
+  # penalized coefficients of the other smooths must be profiled out alongside
+  # the unpenalized ones; their penalty enters the nuisance score and
+  # information.
+  Z <- X[, null_indices, drop = FALSE]
+  S_Z <- S_full[null_indices, null_indices, drop = FALSE]
   B1 <- X[, test_random, drop = FALSE]
   D <- cbind(B1, Z)
   stat <- zip_joint_information(
@@ -200,9 +205,9 @@ taps_score_test_zip <- function(fit, test.component = 1,
   H1theta <- stat$cross_theta[seq_len(q), , drop = FALSE]
 
   iz <- q + seq_len(ncol(Z))
-  UZ <- stat$score[iz]
+  UZ <- stat$score[iz] - matrixVectorMultiply(S_Z, b_null)
   H1Z <- stat$information[seq_len(q), iz, drop = FALSE]
-  HZZ <- stat$information[iz, iz, drop = FALSE]
+  HZZ <- stat$information[iz, iz, drop = FALSE] + S_Z
   HZtheta <- stat$cross_theta[iz, , drop = FALSE]
   UN <- c(UZ, stat$theta_score)
   H1N <- cbind(H1Z, H1theta)

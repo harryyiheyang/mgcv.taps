@@ -157,14 +157,24 @@ taps_score_test_cox <- function(fit, test.component = 1, null.tol = 1e-10,
   if (!converged) stop("Cox null fit did not converge in 50 Newton iterations.")
 
   eta_null <- offset + matrixVectorMultiply(X_null, b_null)
-  Z_indices <- fixed_indices
+  # The nuisance block holds every coefficient fitted by the null model, so the
+  # penalized coefficients of the other smooths must be profiled out alongside
+  # the unpenalized ones; their penalty enters the nuisance score and
+  # information.
+  Z_indices <- null_indices
   if (length(Z_indices)) {
     Z <- X[, Z_indices, drop = FALSE]
+    S_Z <- S_full[Z_indices, Z_indices, drop = FALSE]
     keep_Z <- colSums((Z - matrix(colMeans(Z), nrow(Z), ncol(Z),
-                                  byrow = TRUE))^2) > null.tol
+                                  byrow = TRUE))^2) > null.tol |
+      diag(S_Z) > 0
     Z <- Z[, keep_Z, drop = FALSE]
+    S_Z <- S_Z[keep_Z, keep_Z, drop = FALSE]
+    b_Z <- b_null[keep_Z]
   } else {
     Z <- matrix(nrow = nrow(X), ncol = 0L)
+    S_Z <- matrix(0, 0L, 0L)
+    b_Z <- numeric(0)
   }
   B1 <- X[, test_random, drop = FALSE]
   D <- cbind(B1, Z)
@@ -176,8 +186,8 @@ taps_score_test_cox <- function(fit, test.component = 1, null.tol = 1e-10,
   if (ncol(Z)) {
     iz <- q + seq_len(ncol(Z))
     H1Z <- stat$information[seq_len(q), iz, drop = FALSE]
-    HZZ <- stat$information[iz, iz, drop = FALSE]
-    UZ <- stat$score[iz]
+    HZZ <- stat$information[iz, iz, drop = FALSE] + S_Z
+    UZ <- stat$score[iz] - matrixVectorMultiply(S_Z, b_Z)
     HZZ_inv <- matrixGeneralizedInverse(HZZ)
     U1 <- U1 - matrixVectorMultiply(
       H1Z, matrixVectorMultiply(HZZ_inv, UZ)
