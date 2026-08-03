@@ -62,14 +62,6 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
     ))
   }
 
-  if (grepl("^beta regression", tolower(fit$family$family)) &&
-      isTRUE(fit$family$n.theta > 0L)) {
-    return(taps_score_test_betar(
-      fit = fit, test.component = test.component, null.tol = null.tol,
-      method = method, max_eps = max_eps, max_iter = max_iter
-    ))
-  }
-
   res <- extract_pseudo_response(fit,
                                  eps_mu = eps_mu, n_threads = n_threads)
 
