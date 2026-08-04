@@ -1,0 +1,4 @@
+"model","smooth.term","smooth.pvalue","method"
+"gamm4_base","s(time_s)",7.71773778218687e-09,"davies"
+"gam_base","s(time_s)",4.86599804894183e-09,"davies"
+"gamm4_time_varying","s(time_s)",5.87941911005197e-12,"davies"

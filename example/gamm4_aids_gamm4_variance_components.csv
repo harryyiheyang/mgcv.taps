@@ -1,0 +1,14 @@
+"model","grp","var1","var2","vcov","sdcor"
+"gamm4_base","id","(Intercept)",NA,18.2010371163178,4.266267351716
+"gamm4_base","id","time_s",NA,6.78475171031593,2.60475559512134
+"gamm4_base","id","(Intercept)","time_s",2.60992870893039,0.234862455622401
+"gamm4_base","Xr","s(time_s)",NA,104185.360812213,322.777571730462
+"gamm4_base","Residual",NA,NA,13.7853383516315,3.71286120823705
+"gamm4_time_varying","id","cesd_w",NA,0,0
+"gamm4_time_varying","id.1","sex_w",NA,0.399456358553008,0.632025599602586
+"gamm4_time_varying","id.2","drugs_w",NA,0.0939568339738364,0.306523790224897
+"gamm4_time_varying","id.3","packs_w",NA,0.477056887580546,0.69069304874202
+"gamm4_time_varying","id.4","time_s",NA,6.60949990651321,2.5708947676856
+"gamm4_time_varying","id.5","(Intercept)",NA,16.8422791310104,4.10393459146346
+"gamm4_time_varying","Xr","s(time_s)",NA,94996.8763582055,308.215632890685
+"gamm4_time_varying","Residual",NA,NA,12.8804706004979,3.58893725223748

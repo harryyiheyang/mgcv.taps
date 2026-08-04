@@ -19,6 +19,9 @@ Imports:
     CompQuadForm,
     survey,
     CppMatrix
+Suggests:
+    gamm4 (>= 0.3.0),
+    lme4 (>= 2.0.6)
 LinkingTo:
     Rcpp,
     RcppArmadillo

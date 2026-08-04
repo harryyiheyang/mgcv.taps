@@ -1,12 +1,19 @@
-#' Score Test for a Specified Smooth Term in an mgcv GAM/BAM Model
+#' Score Test for a Specified Smooth Term in an mgcv GAM/BAM/gamm4 Model
 #'
 #' Computes a score test for the penalized (smooth) component of a selected
-#' smooth term in a fitted \code{gam} or \code{bam} object from the \pkg{mgcv}
-#' package. The remaining smooth terms are treated as nuisance components and
-#' are profiled out via a structured covariance approximation. P-values can be
-#' computed by several methods for quadratic forms in normal variables.
+#' smooth term in a fitted \code{gam}, \code{bam}, or \code{gamm4} object. The
+#' \code{gam}/\code{bam} path is handled by \pkg{mgcv}; the \code{gamm4} path
+#' combines the \pkg{mgcv} smooth representation with the sparse random-effect
+#' covariance from \pkg{lme4}. The remaining smooth terms are treated as
+#' nuisance components and are profiled out via a structured covariance
+#' approximation. P-values can be computed by several methods for quadratic
+#' forms in normal variables.
 #'
-#' @param fit A fitted \code{gam} or \code{bam} model object from \pkg{mgcv}.
+#' @param fit A fitted \code{gam}, \code{bam}, or \code{gamm4} model object.
+#'   The \code{gamm4} branch supports the current GLM-style family set used by
+#'   \pkg{gamm4}: Gaussian, binomial, Poisson, Gamma, inverse Gaussian, and
+#'   fixed-theta \code{MASS::negative.binomial()} models. It requires
+#'   \pkg{lme4} >= 2.0.6.
 #' @param test.component Integer. Index of the smooth term to be tested. Default is \code{1}.
 #' @param null.tol Numeric. Row-norm threshold used to detect null-space basis
 #'   columns of the penalty matrix when \code{getA} is unavailable. Default is \code{1e-10}.
@@ -46,6 +53,13 @@
 taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
                             method = "davies", max_eps = 1e-8, max_iter = 1e5,
                             eps_mu = 1e-12, n_threads = 1) {
+  if (inherits(fit, "gamm4")) {
+    return(taps_score_test_gamm4(
+      fit = fit, test.component = test.component, null.tol = null.tol,
+      method = method, max_eps = max_eps, max_iter = max_iter
+    ))
+  }
+
   if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
 
   if (identical(fit$family$family, "Cox PH")) {

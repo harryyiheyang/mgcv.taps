@@ -2,7 +2,7 @@
 % Please edit documentation in R/taps_score_test.R
 \name{taps_score_test}
 \alias{taps_score_test}
-\title{Score Test for a Specified Smooth Term in an mgcv GAM/BAM Model}
+\title{Score Test for a Specified Smooth Term in an mgcv GAM/BAM/gamm4 Model}
 \usage{
 taps_score_test(
   fit,
@@ -16,7 +16,11 @@ taps_score_test(
 )
 }
 \arguments{
-\item{fit}{A fitted \code{gam} or \code{bam} model object from \pkg{mgcv}.}
+\item{fit}{A fitted \code{gam}, \code{bam}, or \code{gamm4} model object.
+The \code{gamm4} branch supports the current GLM-style family set used by
+\pkg{gamm4}: Gaussian, binomial, Poisson, Gamma, inverse Gaussian, and
+fixed-theta \code{MASS::negative.binomial()} models. It requires
+\pkg{lme4} >= 2.0.6.}
 
 \item{test.component}{Integer. Index of the smooth term to be tested. Default is \code{1}.}
 
@@ -47,10 +51,13 @@ A \code{data.table} with three columns:
 }
 \description{
 Computes a score test for the penalized (smooth) component of a selected
-smooth term in a fitted \code{gam} or \code{bam} object from the \pkg{mgcv}
-package. The remaining smooth terms are treated as nuisance components and
-are profiled out via a structured covariance approximation. P-values can be
-computed by several methods for quadratic forms in normal variables.
+smooth term in a fitted \code{gam}, \code{bam}, or \code{gamm4} object. The
+\code{gam}/\code{bam} path is handled by \pkg{mgcv}; the \code{gamm4} path
+combines the \pkg{mgcv} smooth representation with the sparse random-effect
+covariance from \pkg{lme4}. The remaining smooth terms are treated as
+nuisance components and are profiled out via a structured covariance
+approximation. P-values can be computed by several methods for quadratic
+forms in normal variables.
 }
 \examples{
 \dontrun{
