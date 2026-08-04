@@ -140,64 +140,22 @@ taps_score_test_zip <- function(fit, test.component = 1,
   fixed_indices <- setdiff(seq_len(ncol(X)), all_random)
   other_random <- setdiff(all_random, test_random)
   null_indices <- sort(c(fixed_indices, other_random))
-  X_null <- X[, null_indices, drop = FALSE]
-  S_null <- S_full[null_indices, null_indices, drop = FALSE]
-  b_null <- beta[null_indices]
-  theta_null <- as.numeric(fit$family$getTheta(FALSE))
+  eta_fit <- as.numeric(fit$linear.predictors)
+  theta_fit <- as.numeric(fit$family$getTheta(FALSE))
   y <- as.numeric(fit$y)
   weights <- if (is.null(fit$prior.weights)) {
     rep(1, length(y))
   } else {
     as.numeric(fit$prior.weights)
   }
-  offset <- as.numeric(fit$linear.predictors) -
-    matrixVectorMultiply(X, beta)
-
-  converged <- FALSE
-  for (iter in seq_len(50L)) {
-    gamma_null <- offset + matrixVectorMultiply(X_null, b_null)
-    stat_null <- zip_joint_information(
-      X_null, gamma_null, y, theta_null, fit$family, weights
-    )
-    g <- c(
-      stat_null$score - matrixVectorMultiply(S_null, b_null),
-      stat_null$theta_score
-    )
-    H_pen <- rbind(
-      cbind(stat_null$information + S_null, stat_null$cross_theta),
-      cbind(t(stat_null$cross_theta), stat_null$theta_information)
-    )
-    step <- matrixVectorMultiply(matrixGeneralizedInverse(H_pen), g)
-    if (any(!is.finite(step))) {
-      stop("ZIP null fit produced a non-finite Newton step.")
-    }
-
-    nb <- length(b_null)
-    step_b <- step[seq_len(nb)]
-    step_theta <- step[nb + seq_along(theta_null)]
-    b_null <- b_null + step_b
-    theta_null <- theta_null + step_theta
-    d_gamma <- matrixVectorMultiply(X_null, step_b)
-    if (max(sqrt(mean(d_gamma^2)), max(abs(step_theta))) < 1e-8) {
-      converged <- TRUE
-      break
-    }
-  }
-  if (!converged) {
-    stop("ZIP null fit did not converge in 50 Newton iterations.")
-  }
-
-  gamma_null <- offset + matrixVectorMultiply(X_null, b_null)
-  # The nuisance block holds every coefficient fitted by the null model, so the
-  # penalized coefficients of the other smooths must be profiled out alongside
-  # the unpenalized ones; their penalty enters the nuisance score and
-  # information.
+  # Profile the nuisance coefficients from the original fitted model.
   Z <- X[, null_indices, drop = FALSE]
   S_Z <- S_full[null_indices, null_indices, drop = FALSE]
+  b_Z <- beta[null_indices]
   B1 <- X[, test_random, drop = FALSE]
   D <- cbind(B1, Z)
   stat <- zip_joint_information(
-    D, gamma_null, y, theta_null, fit$family, weights
+    D, eta_fit, y, theta_fit, fit$family, weights
   )
   q <- ncol(B1)
   U1 <- stat$score[seq_len(q)]
@@ -205,7 +163,7 @@ taps_score_test_zip <- function(fit, test.component = 1,
   H1theta <- stat$cross_theta[seq_len(q), , drop = FALSE]
 
   iz <- q + seq_len(ncol(Z))
-  UZ <- stat$score[iz] - matrixVectorMultiply(S_Z, b_null)
+  UZ <- stat$score[iz] - matrixVectorMultiply(S_Z, b_Z)
   H1Z <- stat$information[seq_len(q), iz, drop = FALSE]
   HZZ <- stat$information[iz, iz, drop = FALSE] + S_Z
   HZtheta <- stat$cross_theta[iz, , drop = FALSE]

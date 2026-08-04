@@ -120,11 +120,7 @@ taps_score_test_cox <- function(fit, test.component = 1, null.tol = 1e-10,
   fixed_indices <- setdiff(seq_len(ncol(X)), all_random)
   other_random <- setdiff(all_random, test_random)
   null_indices <- sort(c(fixed_indices, other_random))
-  X_null <- X[, null_indices, drop = FALSE]
-  S_null <- S_full[null_indices, null_indices, drop = FALSE]
-  b_null <- beta[null_indices]
-  offset <- as.numeric(fit$linear.predictors) -
-    matrixVectorMultiply(X, beta)
+  eta_fit <- as.numeric(fit$linear.predictors)
 
   if (is.matrix(fit$y)) {
     time <- fit$y[, 1]
@@ -135,32 +131,7 @@ taps_score_test_cox <- function(fit, test.component = 1, null.tol = 1e-10,
   }
   status <- fit$prior.weights
 
-  converged <- FALSE
-  for (iter in seq_len(50L)) {
-    eta_null <- offset + matrixVectorMultiply(X_null, b_null)
-    stat_null <- cox_peto_information(
-      X_null, eta_null, time, status, strata
-    )
-    g <- stat_null$score - matrixVectorMultiply(S_null, b_null)
-    H_pen <- stat_null$information + S_null
-    step <- matrixVectorMultiply(matrixGeneralizedInverse(H_pen), g)
-    if (any(!is.finite(step))) {
-      stop("Cox null fit produced a non-finite Newton step.")
-    }
-    b_null <- b_null + step
-    d_eta <- matrixVectorMultiply(X_null, step)
-    if (sqrt(mean(d_eta^2)) < 1e-8) {
-      converged <- TRUE
-      break
-    }
-  }
-  if (!converged) stop("Cox null fit did not converge in 50 Newton iterations.")
-
-  eta_null <- offset + matrixVectorMultiply(X_null, b_null)
-  # The nuisance block holds every coefficient fitted by the null model, so the
-  # penalized coefficients of the other smooths must be profiled out alongside
-  # the unpenalized ones; their penalty enters the nuisance score and
-  # information.
+  # Profile the nuisance coefficients from the original fitted model.
   Z_indices <- null_indices
   if (length(Z_indices)) {
     Z <- X[, Z_indices, drop = FALSE]
@@ -170,7 +141,7 @@ taps_score_test_cox <- function(fit, test.component = 1, null.tol = 1e-10,
       diag(S_Z) > 0
     Z <- Z[, keep_Z, drop = FALSE]
     S_Z <- S_Z[keep_Z, keep_Z, drop = FALSE]
-    b_Z <- b_null[keep_Z]
+    b_Z <- beta[Z_indices[keep_Z]]
   } else {
     Z <- matrix(nrow = nrow(X), ncol = 0L)
     S_Z <- matrix(0, 0L, 0L)
@@ -178,7 +149,7 @@ taps_score_test_cox <- function(fit, test.component = 1, null.tol = 1e-10,
   }
   B1 <- X[, test_random, drop = FALSE]
   D <- cbind(B1, Z)
-  stat <- cox_peto_information(D, eta_null, time, status, strata)
+  stat <- cox_peto_information(D, eta_fit, time, status, strata)
   q <- ncol(B1)
   U1 <- stat$score[seq_len(q)]
   P1 <- stat$information[seq_len(q), seq_len(q), drop = FALSE]
