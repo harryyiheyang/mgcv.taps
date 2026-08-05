@@ -5,6 +5,14 @@ cox_peto_suffstat <- function(X, eta, time, status) {
     .Call(`_mgcv_taps_cox_peto_suffstat`, X, eta, time, status)
 }
 
+native_re_uid_profile_create_cpp <- function(dense, local, group, weight, dense_penalty, local_penalty, n_threads = 1L) {
+    .Call(`_mgcv_taps_native_re_uid_profile_create_cpp`, dense, local, group, weight, dense_penalty, local_penalty, n_threads)
+}
+
+native_re_uid_profile_apply_cpp <- function(pointer, value, schur_inverse) {
+    .Call(`_mgcv_taps_native_re_uid_profile_apply_cpp`, pointer, value, schur_inverse)
+}
+
 ocat_folded <- function(eta, y_int, alpha, eps_mu = 1e-12, eps_w = 1e-12, clip_eta_min = -20.0, clip_eta_max = 20.0, n_threads = 1L) {
     .Call(`_mgcv_taps_ocat_folded`, eta, y_int, alpha, eps_mu, eps_w, clip_eta_min, clip_eta_max, n_threads)
 }

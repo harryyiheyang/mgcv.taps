@@ -25,7 +25,15 @@
 #' @param max_iter Integer. Maximum number of integration steps passed to
 #'   \code{CompQuadForm::davies}. Default is \code{1e5}.
 #' @param eps_mu Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
-#' @param n_threads Integer. Number of threads passed to \code{extract_pseudo_response}. Default is \code{1}.
+#' @param n_threads Integer. Number of threads used by supported pseudo-response
+#'   calculations and the uid-local native random-effect backend. Default is
+#'   \code{1}.
+#' @param include_re Logical. Whether to use the sparse random-effect path for
+#'   native mgcv \code{re}/\code{fs} smooths, using uid-local block solves
+#'   without a global random-effect design or covariance matrix, or the sparse
+#'   lme4 random-effect factorization for a \code{gamm4} object. Cox PH and
+#'   zero-inflated Poisson fits are not supported with \code{include_re = TRUE}.
+#'   Default is \code{FALSE}.
 #'
 #' @return A \code{data.table} with three columns:
 #'   \describe{
@@ -52,8 +60,20 @@
 #' @export
 taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
                             method = "davies", max_eps = 1e-8, max_iter = 1e5,
-                            eps_mu = 1e-12, n_threads = 1) {
+                            eps_mu = 1e-12, n_threads = 1,
+                            include_re = FALSE) {
+  if (length(include_re) != 1L || is.na(include_re) ||
+      !is.logical(include_re)) {
+    stop("include_re must be a single TRUE or FALSE value.")
+  }
+
   if (inherits(fit, "gamm4")) {
+    if (include_re) {
+      return(taps_score_test_gamm4_re(
+        fit = fit, test.component = test.component, null.tol = null.tol,
+        method = method, max_eps = max_eps, max_iter = max_iter
+      ))
+    }
     return(taps_score_test_gamm4(
       fit = fit, test.component = test.component, null.tol = null.tol,
       method = method, max_eps = max_eps, max_iter = max_iter
@@ -61,6 +81,22 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
   }
 
   if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
+
+  if (include_re) {
+    if (identical(fit$family$family, "Cox PH")) {
+      stop("include_re = TRUE is not supported for Cox PH fits.")
+    }
+
+    if (grepl("^zero inflated poisson", tolower(fit$family$family))) {
+      stop("include_re = TRUE is not supported for zero-inflated Poisson fits.")
+    }
+
+    return(taps_score_test_re(
+      fit = fit, test.component = test.component, null.tol = null.tol,
+      method = method, max_eps = max_eps, max_iter = max_iter,
+      eps_mu = eps_mu, n_threads = n_threads
+    ))
+  }
 
   if (identical(fit$family$family, "Cox PH")) {
     return(taps_score_test_cox(

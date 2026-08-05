@@ -12,7 +12,8 @@ taps_score_test(
   max_eps = 1e-08,
   max_iter = 1e+05,
   eps_mu = 1e-12,
-  n_threads = 1
+  n_threads = 1,
+  include_re = FALSE
 )
 }
 \arguments{
@@ -39,7 +40,16 @@ statistic. One of \code{"davies"} (default), \code{"liu"}, \code{"hbe"},
 
 \item{eps_mu}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
 
-\item{n_threads}{Integer. Number of threads passed to \code{extract_pseudo_response}. Default is \code{1}.}
+\item{n_threads}{Integer. Number of threads used by supported pseudo-response
+calculations and the uid-local native random-effect backend. Default is
+\code{1}.}
+
+\item{include_re}{Logical. Whether to use the sparse random-effect path for
+native mgcv \code{re}/\code{fs} smooths, using uid-local block solves
+without a global random-effect design or covariance matrix, or the sparse
+lme4 random-effect factorization for a \code{gamm4} object. Cox PH and
+zero-inflated Poisson fits are not supported with \code{include_re = TRUE}.
+Default is \code{FALSE}.}
 }
 \value{
 A \code{data.table} with three columns:

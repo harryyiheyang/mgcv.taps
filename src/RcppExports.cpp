@@ -25,6 +25,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// native_re_uid_profile_create_cpp
+Rcpp::List native_re_uid_profile_create_cpp(const arma::mat& dense, const arma::mat& local, const arma::ivec& group, const arma::vec& weight, const arma::mat& dense_penalty, const arma::mat& local_penalty, int n_threads);
+RcppExport SEXP _mgcv_taps_native_re_uid_profile_create_cpp(SEXP denseSEXP, SEXP localSEXP, SEXP groupSEXP, SEXP weightSEXP, SEXP dense_penaltySEXP, SEXP local_penaltySEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type dense(denseSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type local(localSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type dense_penalty(dense_penaltySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type local_penalty(local_penaltySEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(native_re_uid_profile_create_cpp(dense, local, group, weight, dense_penalty, local_penalty, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// native_re_uid_profile_apply_cpp
+arma::mat native_re_uid_profile_apply_cpp(SEXP pointer, const arma::mat& value, const arma::mat& schur_inverse);
+RcppExport SEXP _mgcv_taps_native_re_uid_profile_apply_cpp(SEXP pointerSEXP, SEXP valueSEXP, SEXP schur_inverseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type value(valueSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type schur_inverse(schur_inverseSEXP);
+    rcpp_result_gen = Rcpp::wrap(native_re_uid_profile_apply_cpp(pointer, value, schur_inverse));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ocat_folded
 List ocat_folded(NumericVector eta, IntegerVector y_int, NumericVector alpha, double eps_mu, double eps_w, double clip_eta_min, double clip_eta_max, int n_threads);
 RcppExport SEXP _mgcv_taps_ocat_folded(SEXP etaSEXP, SEXP y_intSEXP, SEXP alphaSEXP, SEXP eps_muSEXP, SEXP eps_wSEXP, SEXP clip_eta_minSEXP, SEXP clip_eta_maxSEXP, SEXP n_threadsSEXP) {
@@ -46,6 +76,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_cox_peto_suffstat", (DL_FUNC) &_mgcv_taps_cox_peto_suffstat, 4},
+    {"_mgcv_taps_native_re_uid_profile_create_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_create_cpp, 7},
+    {"_mgcv_taps_native_re_uid_profile_apply_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_apply_cpp, 3},
     {"_mgcv_taps_ocat_folded", (DL_FUNC) &_mgcv_taps_ocat_folded, 8},
     {NULL, NULL, 0}
 };
