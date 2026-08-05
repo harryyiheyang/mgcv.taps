@@ -87,7 +87,7 @@ extract_pseudo_response <- function(fit, ...) {
     y      <- fit$y
     pseudo_response <- eta + (y - mu) * g_prime_mu
     W_diag <- as.numeric(fit$prior.weights) / (var_mu * g_prime_mu^2)
-    phi0   <- summary(fit)$dispersion
+    phi0   <- fit$sig2
     if (is.null(phi0) || !is.numeric(phi0)) phi0 <- 1
     valid_idx <- NULL
   }
