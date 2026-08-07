@@ -113,7 +113,7 @@ gamm4_v0_inv_apply <- function(V_phi, Zt, Lambdat, scale) {
   }
 }
 
-gamm4_scaled_penalty <- function(s, sp, phi0) {
+gamm4_scaled_penalty <- function(s, sp, phi0, n_coef) {
   if (is.null(s$first.sp) || is.null(s$last.sp)) {
     stop("Penalized smooth has no smoothing-parameter index.")
   }
@@ -125,8 +125,13 @@ gamm4_scaled_penalty <- function(s, sp, phi0) {
   if (anyNA(sp_value)) {
     stop("Penalized smooth has missing smoothing-parameter values.")
   }
-  Reduce(`+`, Map(function(S_matrix, value) S_matrix * value / phi0,
-                  s$S, sp_value))
+  Reduce(`+`, Map(
+    function(S_matrix, value) {
+      expand_penalty_to_coefficients(S_matrix, n_coef, s$label) *
+        value / phi0
+    },
+    s$S, sp_value
+  ))
 }
 
 taps_score_test_gamm4 <- function(fit, test.component = 1, null.tol = 1e-10,
@@ -192,7 +197,9 @@ taps_score_test_gamm4 <- function(fit, test.component = 1, null.tol = 1e-10,
     }
     if (is_fixed_smooth) next
 
-    S_matrix <- gamm4_scaled_penalty(s, g$sp, phi0)
+    S_matrix <- gamm4_scaled_penalty(
+      s, g$sp, phi0, n_coef = length(indices)
+    )
     S_norm <- norm(S_matrix, "f")
     if (!is.finite(S_norm) || S_norm <= 0) {
       if (i == test.component) {
