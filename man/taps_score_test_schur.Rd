@@ -2,7 +2,7 @@
 % Please edit documentation in R/taps_score_test_schur.R
 \name{taps_score_test_schur}
 \alias{taps_score_test_schur}
-\title{Score Test with Schur Projection over Nuisance Smooth Components}
+\title{Experimental Schur-Projected Quadratic Diagnostic}
 \usage{
 taps_score_test_schur(
   fit,
@@ -17,7 +17,8 @@ taps_score_test_schur(
 )
 }
 \arguments{
-\item{fit}{A fitted \code{gam}, \code{bam}, or \code{gamm4} object.}
+\item{fit}{A fitted mgcv \code{gam} or \code{bam} object. \code{gamm4} and
+\code{gammfast} objects are not supported.}
 
 \item{test.component}{Integer index of the smooth term to be tested.}
 
@@ -46,19 +47,29 @@ ordinary \code{gam}/\code{bam} fits.}
 A one-row \code{data.table} containing the p-value, raw and
   efficient scores, raw and efficient information, and the fraction of
   target information removed by the Schur projection. Per-component
-projection coefficients, standardized Fisher couplings, and signed
-information-loss contributions are returned as labeled strings separated
-by \code{", "}, so multiple nuisance terms remain distinguishable in a
+  projection coefficients, standardized Fisher couplings, and signed
+  information-loss contributions are returned as labeled strings separated
+  by \code{", "}, so multiple nuisance terms remain distinguishable in a
   data-frame or CSV cell.
 }
 \description{
-Computes the TAPS score test for one penalized smooth after projecting its
+Computes an experimental fitted-model quadratic diagnostic for one penalized smooth after projecting its
 variance-component score off the score span of selected nuisance smooths.
-Ordinary \code{gam}/\code{bam} fits and \code{gamm4} fits are supported.
+Only ordinary mgcv \code{gam}/\code{bam} fits are supported. Fitted mgcv
+\code{re}/\code{fs} terms are permitted and remain ordinary smoothing
+components; this function does not activate a separate random-effect
+covariance backend.
 Cox and zero-inflated Poisson models are intentionally not handled by this
 function.
 }
 \details{
+All fitted quantities are frozen and no null model is refitted. This
+diagnostic is separate from the primary conditional definition used by
+[taps_score_test_gamm()] and is not called by that interface. Its reference
+law is evaluated from the signed eigenvalues of the projected quadratic
+kernel; it is never standardized as `U / sqrt(I)` or calibrated by a
+Gaussian score limit.
+
 Each entry of \code{schur.component} identifies a whole smooth term. If a
 selected smooth has several penalties, its fitted, smoothing-parameter
 weighted penalty is treated as one local covariance direction.

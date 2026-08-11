@@ -6,12 +6,12 @@ taps_score_test_re <- function(fit, test.component = 1, null.tol = 1e-10,
       !is.numeric(n_threads) || !is.finite(n_threads) ||
       n_threads < 1 || n_threads > .Machine$integer.max ||
       n_threads != as.integer(n_threads)) {
-    stop("n_threads must be a positive integer for include_re = TRUE.")
+    stop("n_threads must be a positive integer for the native GAMM backend.")
   }
   n_threads <- as.integer(n_threads)
   if (is.null(fit$sig2) || length(fit$sig2) != 1L ||
       !is.numeric(fit$sig2) || !is.finite(fit$sig2) || fit$sig2 <= 0) {
-    stop("include_re = TRUE requires a finite positive fitted dispersion.")
+    stop("The native GAMM backend requires a finite positive fitted dispersion.")
   }
   res <- extract_pseudo_response(
     fit, eps_mu = eps_mu, n_threads = n_threads
@@ -37,10 +37,10 @@ taps_score_test_re <- function(fit, test.component = 1, null.tol = 1e-10,
   test.component <- test_component_int
 
   if (!any(vapply(smooth_terms, native_re_is_smooth, logical(1)))) {
-    stop("include_re = TRUE requires at least one mgcv re or fs smooth.")
+    stop("The native GAMM backend requires at least one mgcv re or fs smooth.")
   }
   if (native_re_is_smooth(smooth_terms[[test.component]])) {
-    stop("include_re = TRUE supports re and fs smooths as nuisance terms only.")
+    stop("The native GAMM backend supports re and fs smooths as nuisance terms only.")
   }
 
   data <- native_re_design_data(fit)
@@ -103,7 +103,7 @@ taps_score_test_re <- function(fit, test.component = 1, null.tol = 1e-10,
 
     if (is_fixed_smooth) {
       if (native_re_is_smooth(s)) {
-        stop("include_re = TRUE requires re and fs nuisance smooths to be penalized.")
+        stop("The native GAMM backend requires penalized re and fs nuisance smooths.")
       }
       fixed_blocks[[as.character(i)]] <- list(indices = indices, X = B_dense)
       next

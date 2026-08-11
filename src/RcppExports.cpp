@@ -25,6 +25,119 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gammfast_gaussian_cache
+List gammfast_gaussian_cache(const arma::mat& A, const arma::mat& B, const arma::ivec& id, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_cache(SEXP ASEXP, SEXP BSEXP, SEXP idSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_cache(A, B, id, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_gaussian_crossprod_cached
+List gammfast_gaussian_crossprod_cached(const arma::mat& AtA, const arma::cube& BtB, const arma::cube& BtA, const arma::mat& H, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_crossprod_cached(SEXP AtASEXP, SEXP BtBSEXP, SEXP BtASEXP, SEXP HSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type AtA(AtASEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type BtB(BtBSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type BtA(BtASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type H(HSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_crossprod_cached(AtA, BtB, BtA, H, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_gaussian_crossprod
+List gammfast_gaussian_crossprod(const arma::mat& A, const arma::mat& B, const arma::ivec& id, const arma::mat& H, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_crossprod(SEXP ASEXP, SEXP BSEXP, SEXP idSEXP, SEXP HSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type H(HSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_crossprod(A, B, id, H, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_gaussian_moments
+List gammfast_gaussian_moments(const arma::vec& residual, const arma::mat& B, const arma::ivec& id, const arma::mat& G, double sigma2, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_moments(SEXP residualSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP sigma2SEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type residual(residualSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma2(sigma2SEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_moments(residual, B, id, G, sigma2, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_vinv_apply
+arma::mat gammfast_vinv_apply(const arma::mat& A, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::vec& R_diag, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_vinv_apply(SEXP ASEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP R_diagSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type R_diag(R_diagSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_vinv_apply(A, B, id, G, R_diag, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_re_quadratic_spectrum
+List gammfast_re_quadratic_spectrum(const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::vec& R_diag, const arma::mat& penalty, const arma::mat& random_effects, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_re_quadratic_spectrum(SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP R_diagSEXP, SEXP penaltySEXP, SEXP random_effectsSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type R_diag(R_diagSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type penalty(penaltySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type random_effects(random_effectsSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_re_quadratic_spectrum(X, B, id, G, R_diag, penalty, random_effects, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_re_quadratic_random_moments
+List gammfast_re_quadratic_random_moments(const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::vec& R_diag, const arma::mat& penalty, const arma::mat& random_effects, const arma::mat& probes, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_re_quadratic_random_moments(SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP R_diagSEXP, SEXP penaltySEXP, SEXP random_effectsSEXP, SEXP probesSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type R_diag(R_diagSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type penalty(penaltySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type random_effects(random_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type probes(probesSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_re_quadratic_random_moments(X, B, id, G, R_diag, penalty, random_effects, probes, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 // native_re_uid_profile_create_cpp
 Rcpp::List native_re_uid_profile_create_cpp(const arma::mat& dense, const arma::mat& local, const arma::ivec& group, const arma::vec& weight, const arma::mat& dense_penalty, const arma::mat& local_penalty, int n_threads);
 RcppExport SEXP _mgcv_taps_native_re_uid_profile_create_cpp(SEXP denseSEXP, SEXP localSEXP, SEXP groupSEXP, SEXP weightSEXP, SEXP dense_penaltySEXP, SEXP local_penaltySEXP, SEXP n_threadsSEXP) {
@@ -76,6 +189,13 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_cox_peto_suffstat", (DL_FUNC) &_mgcv_taps_cox_peto_suffstat, 4},
+    {"_mgcv_taps_gammfast_gaussian_cache", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_cache, 4},
+    {"_mgcv_taps_gammfast_gaussian_crossprod_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod_cached, 5},
+    {"_mgcv_taps_gammfast_gaussian_crossprod", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod, 5},
+    {"_mgcv_taps_gammfast_gaussian_moments", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_moments, 6},
+    {"_mgcv_taps_gammfast_vinv_apply", (DL_FUNC) &_mgcv_taps_gammfast_vinv_apply, 6},
+    {"_mgcv_taps_gammfast_re_quadratic_spectrum", (DL_FUNC) &_mgcv_taps_gammfast_re_quadratic_spectrum, 8},
+    {"_mgcv_taps_gammfast_re_quadratic_random_moments", (DL_FUNC) &_mgcv_taps_gammfast_re_quadratic_random_moments, 9},
     {"_mgcv_taps_native_re_uid_profile_create_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_create_cpp, 7},
     {"_mgcv_taps_native_re_uid_profile_apply_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_apply_cpp, 3},
     {"_mgcv_taps_ocat_folded", (DL_FUNC) &_mgcv_taps_ocat_folded, 8},

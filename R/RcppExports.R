@@ -5,6 +5,34 @@ cox_peto_suffstat <- function(X, eta, time, status) {
     .Call(`_mgcv_taps_cox_peto_suffstat`, X, eta, time, status)
 }
 
+gammfast_gaussian_cache <- function(A, B, id, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_gaussian_cache`, A, B, id, n_threads)
+}
+
+gammfast_gaussian_crossprod_cached <- function(AtA, BtB, BtA, H, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_gaussian_crossprod_cached`, AtA, BtB, BtA, H, n_threads)
+}
+
+gammfast_gaussian_crossprod <- function(A, B, id, H, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_gaussian_crossprod`, A, B, id, H, n_threads)
+}
+
+gammfast_gaussian_moments <- function(residual, B, id, G, sigma2, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_gaussian_moments`, residual, B, id, G, sigma2, n_threads)
+}
+
+gammfast_vinv_apply <- function(A, B, id, G, R_diag, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_vinv_apply`, A, B, id, G, R_diag, n_threads)
+}
+
+gammfast_re_quadratic_spectrum <- function(X, B, id, G, R_diag, penalty, random_effects, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_re_quadratic_spectrum`, X, B, id, G, R_diag, penalty, random_effects, n_threads)
+}
+
+gammfast_re_quadratic_random_moments <- function(X, B, id, G, R_diag, penalty, random_effects, probes, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_re_quadratic_random_moments`, X, B, id, G, R_diag, penalty, random_effects, probes, n_threads)
+}
+
 native_re_uid_profile_create_cpp <- function(dense, local, group, weight, dense_penalty, local_penalty, n_threads = 1L) {
     .Call(`_mgcv_taps_native_re_uid_profile_create_cpp`, dense, local, group, weight, dense_penalty, local_penalty, n_threads)
 }

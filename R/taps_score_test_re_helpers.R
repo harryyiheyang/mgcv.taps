@@ -119,7 +119,7 @@ native_re_bind_dense <- function(blocks, n) {
 
 native_re_bind_local <- function(blocks, n) {
   if (!length(blocks)) {
-    stop("include_re = TRUE requires a penalized re or fs nuisance smooth.")
+    stop("The native GAMM backend requires a penalized re or fs nuisance smooth.")
   }
   block_order <- order(vapply(blocks, function(block) {
     min(block$indices)

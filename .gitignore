@@ -2,3 +2,13 @@
 .Rhistory
 .RData
 .Ruserdata
+.learnings/
+..Rcheck/
+tmp/
+src/*.o
+src/*.dll
+research/
+example/
+REVISION_GUIDE.md
+*.stdout.log
+*.stderr.log

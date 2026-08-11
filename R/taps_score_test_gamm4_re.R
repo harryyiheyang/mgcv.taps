@@ -83,7 +83,7 @@ taps_score_test_gamm4_re <- function(fit, test.component = 1,
 
   re_block <- extract_random_block_gamm4_re(fit)
   if (nrow(re_block$Zt) == 0L) {
-    stop("include_re = TRUE requires a gamm4 lme4 random-effect structure.")
+    stop("The gamm4 backend requires an lme4 random-effect structure.")
   }
   V0_inv_apply <- gamm4_v0_inv_apply_re(
     V_phi = V_phi, Zt = re_block$Zt,
@@ -107,7 +107,9 @@ taps_score_test_gamm4_re <- function(fit, test.component = 1,
     }
     if (is_fixed_smooth) next
 
-    S_matrix <- gamm4_scaled_penalty(s, g$sp, phi0)
+    S_matrix <- gamm4_scaled_penalty(
+      s, g$sp, phi0, n_coef = length(indices)
+    )
     S_norm <- norm(S_matrix, "f")
     if (!is.finite(S_norm) || S_norm <= 0) {
       if (i == test.component) {

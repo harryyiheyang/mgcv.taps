@@ -79,6 +79,30 @@ extract_pseudo_response <- function(fit, ...) {
     pseudo_response <- eta + l_prime / W_diag
     phi0 <- 1.0
     valid_idx <- !is.na(pseudo_response) & W_diag > 1e-12
+  } else if (inherits(fit$family, "extended.family") &&
+             is.function(fit$family$Dd)) {
+    eta <- as.numeric(fit$linear.predictors)
+    mu <- as.numeric(fit$fitted.values)
+    y <- fit$y
+    wt <- if (is.null(fit$prior.weights)) {
+      rep(1, length(y))
+    } else {
+      as.numeric(fit$prior.weights)
+    }
+    theta <- fit$family$getTheta()
+    Dval <- fit$family$Dd(y, mu, theta, wt, level = 0)
+    mu_eta <- fit$family$mu.eta(eta)
+    D_eta <- Dval$Dmu * mu_eta
+    W_diag <- Dval$EDmu2 * mu_eta^2 / 2
+    pseudo_response <- eta - D_eta / (2 * W_diag)
+    phi0 <- if (inherits(fit, "gammfast")) fit$sigma2 else fit$sig2
+    if (is.null(phi0) || length(phi0) != 1L ||
+        !is.numeric(phi0) || !is.finite(phi0) || phi0 <= 0) {
+      phi0 <- 1.0
+    }
+    phi0 <- as.numeric(phi0)
+    valid_idx <- is.finite(pseudo_response) & is.finite(W_diag) &
+      W_diag > 1e-12
   } else {
     eta    <- fit$linear.predictors
     mu     <- fit$fitted.values
@@ -87,8 +111,12 @@ extract_pseudo_response <- function(fit, ...) {
     y      <- fit$y
     pseudo_response <- eta + (y - mu) * g_prime_mu
     W_diag <- as.numeric(fit$prior.weights) / (var_mu * g_prime_mu^2)
-    phi0   <- fit$sig2
-    if (is.null(phi0) || !is.numeric(phi0)) phi0 <- 1
+    phi0 <- if (inherits(fit, "gammfast")) fit$sigma2 else fit$sig2
+    if (is.null(phi0) || length(phi0) != 1L ||
+        !is.numeric(phi0) || !is.finite(phi0) || phi0 <= 0) {
+      phi0 <- 1.0
+    }
+    phi0 <- as.numeric(phi0)
     valid_idx <- NULL
   }
 

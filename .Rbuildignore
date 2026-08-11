@@ -1,4 +1,14 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.git$
+^\.gitignore$
 ^\.learnings$
 ^temp$
+^tmp$
+^\.\.Rcheck$
+^src/.*\.(o|dll)$
+^research$
+^example$
+^REVISION_GUIDE\.md$
+^[^/]+\.(stdout|stderr)\.log$
+^tests$

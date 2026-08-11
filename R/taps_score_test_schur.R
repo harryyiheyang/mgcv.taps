@@ -1,16 +1,27 @@
-#' Score Test with Schur Projection over Nuisance Smooth Components
+#' Experimental Schur-Projected Quadratic Diagnostic
 #'
-#' Computes the TAPS score test for one penalized smooth after projecting its
+#' Computes an experimental fitted-model quadratic diagnostic for one penalized smooth after projecting its
 #' variance-component score off the score span of selected nuisance smooths.
-#' Ordinary \code{gam}/\code{bam} fits and \code{gamm4} fits are supported.
+#' Only ordinary mgcv \code{gam}/\code{bam} fits are supported. Fitted mgcv
+#' \code{re}/\code{fs} terms are permitted and remain ordinary smoothing
+#' components; this function does not activate a separate random-effect
+#' covariance backend.
 #' Cox and zero-inflated Poisson models are intentionally not handled by this
 #' function.
+#'
+#' All fitted quantities are frozen and no null model is refitted. This
+#' diagnostic is separate from the primary conditional definition used by
+#' [taps_score_test_gamm()] and is not called by that interface. Its reference
+#' law is evaluated from the signed eigenvalues of the projected quadratic
+#' kernel; it is never standardized as `U / sqrt(I)` or calibrated by a
+#' Gaussian score limit.
 #'
 #' Each entry of \code{schur.component} identifies a whole smooth term. If a
 #' selected smooth has several penalties, its fitted, smoothing-parameter
 #' weighted penalty is treated as one local covariance direction.
 #'
-#' @param fit A fitted \code{gam}, \code{bam}, or \code{gamm4} object.
+#' @param fit A fitted mgcv \code{gam} or \code{bam} object. \code{gamm4} and
+#'   \code{gammfast} objects are not supported.
 #' @param test.component Integer index of the smooth term to be tested.
 #' @param schur.component Integer vector indexing nuisance smooth terms. Use
 #'   \code{integer(0)} for no Schur projection.
@@ -53,48 +64,16 @@ taps_score_test_schur <- function(fit, test.component = 1,
     stop("method must be 'davies'.")
   }
 
-  if (inherits(fit, "gamm4")) {
-    if (!requireNamespace("lme4", quietly = TRUE)) {
-      stop("Package 'lme4' is required for gamm4 Schur TAPS tests.")
-    }
-    if (utils::packageVersion("lme4") < numeric_version("2.0.6")) {
-      stop("gamm4 Schur TAPS requires lme4 >= 2.0.6.")
-    }
-
-    g <- fit$gam
-    res <- extract_pseudo_response_gamm4(fit)
-    re_block <- extract_random_block_gamm4(fit)
-    V0_inv_apply <- gamm4_v0_inv_apply(
-      V_phi = res$V_phi,
-      Zt = re_block$Zt,
-      Lambdat = re_block$Lambdat,
-      scale = re_block$scale
-    )
-    offset <- stats::model.offset(g$model)
-    if (is.null(offset)) offset <- numeric(length(res$pseudo_response))
-
-    return(taps_score_test_schur_core(
-      g = g,
-      pseudo_response = res$pseudo_response,
-      V_phi = res$V_phi,
-      phi0 = res$phi0,
-      offset = offset,
-      V0_inv_apply = V0_inv_apply,
-      test.component = test.component,
-      schur.component = schur.component,
-      null.tol = null.tol,
-      method = method,
-      max_eps = max_eps,
-      max_iter = max_iter
-    ))
+  if (inherits(fit, "gammfast") || inherits(fit, "gamm4")) {
+    stop("taps_score_test_schur accepts only mgcv gam or bam fits.")
   }
 
   if (!inherits(fit, "gam")) {
-    stop("fit must be a 'gam', 'bam', or 'gamm4' object.")
+    stop("fit must be an mgcv 'gam' or 'bam' object.")
   }
   if (identical(fit$family$family, "Cox PH") ||
       grepl("^zero inflated poisson", tolower(fit$family$family))) {
-    stop("taps_score_test_schur currently supports only ordinary gam/bam and gamm4 GLM-style fits.")
+    stop("taps_score_test_schur currently supports only ordinary mgcv gam/bam GLM-style fits.")
   }
 
   res <- extract_pseudo_response(
@@ -502,6 +481,11 @@ taps_score_test_schur_core <- function(g, pseudo_response, V_phi, phi0,
     min.eigenvalue = min(lambda),
     max.eigenvalue = max(lambda),
     davies.ifault = davies_ifault,
-    method = method
+    method = method,
+    conditional = TRUE,
+    null.refit = FALSE,
+    post.estimation = TRUE,
+    gaussian.score = FALSE,
+    experimental = TRUE
   )
 }

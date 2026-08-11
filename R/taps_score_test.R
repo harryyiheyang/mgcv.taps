@@ -1,19 +1,25 @@
-#' Score Test for a Specified Smooth Term in an mgcv GAM/BAM/gamm4 Model
+#' Conditional Post-Estimation Evaluation for a Specified Smooth Term
 #'
-#' Computes a score test for the penalized (smooth) component of a selected
-#' smooth term in a fitted \code{gam}, \code{bam}, or \code{gamm4} object. The
-#' \code{gam}/\code{bam} path is handled by \pkg{mgcv}; the \code{gamm4} path
-#' combines the \pkg{mgcv} smooth representation with the sparse random-effect
-#' covariance from \pkg{lme4}. The remaining smooth terms are treated as
+#' Computes a fitted-model quadratic evaluation for the penalized component of
+#' a selected smooth term in a fitted \code{gam} or \code{bam} object. The
+#' model is handled exactly through its mgcv smooth representation. Hence
+#' mgcv \code{re}/\code{fs} terms, when present, are ordinary fitted smoothing
+#' components in this interface; no separate random-effect covariance backend
+#' is activated. The remaining smooth terms are treated as
 #' nuisance components and are profiled out via a structured covariance
 #' approximation. P-values can be computed by several methods for quadratic
 #' forms in normal variables.
 #'
-#' @param fit A fitted \code{gam}, \code{bam}, or \code{gamm4} model object.
-#'   The \code{gamm4} branch supports the current GLM-style family set used by
-#'   \pkg{gamm4}: Gaussian, binomial, Poisson, Gamma, inverse Gaussian, and
-#'   fixed-theta \code{MASS::negative.binomial()} models. It requires
-#'   \pkg{lme4} >= 2.0.6.
+#' The historical score-test name is retained for compatibility. The fitted
+#' coefficients, smoothing parameters, and dispersion are frozen, and no null
+#' model is refitted. Hence
+#' this is a conditional post-estimation evaluation rather than a Rao score
+#' test. Calibration uses the weighted quadratic-form spectrum; it is not a
+#' Gaussian `U / sqrt(I)` test.
+#'
+#' @param fit A fitted \code{gam} or \code{bam} model object from \pkg{mgcv}.
+#'   Use [taps_score_test_gamm()] for \code{gamm4} or \code{gammfast} fits, or
+#'   when an explicit fitted random-effect covariance backend is required.
 #' @param test.component Integer. Index of the smooth term to be tested. Default is \code{1}.
 #' @param null.tol Numeric. Row-norm threshold used to detect null-space basis
 #'   columns of the penalty matrix when \code{getA} is unavailable. Default is \code{1e-10}.
@@ -26,14 +32,7 @@
 #'   \code{CompQuadForm::davies}. Default is \code{1e5}.
 #' @param eps_mu Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
 #' @param n_threads Integer. Number of threads used by supported pseudo-response
-#'   calculations and the uid-local native random-effect backend. Default is
-#'   \code{1}.
-#' @param include_re Logical. Whether to use the sparse random-effect path for
-#'   native mgcv \code{re}/\code{fs} smooths, using uid-local block solves
-#'   without a global random-effect design or covariance matrix, or the sparse
-#'   lme4 random-effect factorization for a \code{gamm4} object. Cox PH and
-#'   zero-inflated Poisson fits are not supported with \code{include_re = TRUE}.
-#'   Default is \code{FALSE}.
+#'   calculations. Default is \code{1}.
 #'
 #' @return A \code{data.table} with three columns:
 #'   \describe{
@@ -60,43 +59,14 @@
 #' @export
 taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
                             method = "davies", max_eps = 1e-8, max_iter = 1e5,
-                            eps_mu = 1e-12, n_threads = 1,
-                            include_re = FALSE) {
-  if (length(include_re) != 1L || is.na(include_re) ||
-      !is.logical(include_re)) {
-    stop("include_re must be a single TRUE or FALSE value.")
+                            eps_mu = 1e-12, n_threads = 1) {
+  if (inherits(fit, "gammfast")) {
+    stop("taps_score_test does not accept gammfast fits; use taps_score_test_gamm().")
   }
-
   if (inherits(fit, "gamm4")) {
-    if (include_re) {
-      return(taps_score_test_gamm4_re(
-        fit = fit, test.component = test.component, null.tol = null.tol,
-        method = method, max_eps = max_eps, max_iter = max_iter
-      ))
-    }
-    return(taps_score_test_gamm4(
-      fit = fit, test.component = test.component, null.tol = null.tol,
-      method = method, max_eps = max_eps, max_iter = max_iter
-    ))
+    stop("taps_score_test does not accept gamm4 fits; use taps_score_test_gamm().")
   }
-
   if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
-
-  if (include_re) {
-    if (identical(fit$family$family, "Cox PH")) {
-      stop("include_re = TRUE is not supported for Cox PH fits.")
-    }
-
-    if (grepl("^zero inflated poisson", tolower(fit$family$family))) {
-      stop("include_re = TRUE is not supported for zero-inflated Poisson fits.")
-    }
-
-    return(taps_score_test_re(
-      fit = fit, test.component = test.component, null.tol = null.tol,
-      method = method, max_eps = max_eps, max_iter = max_iter,
-      eps_mu = eps_mu, n_threads = n_threads
-    ))
-  }
 
   if (identical(fit$family$family, "Cox PH")) {
     return(taps_score_test_cox(
@@ -118,6 +88,15 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
   pseudo_response <- res$pseudo_response
   V_phi           <- res$V_phi
   phi0            <- res$phi0
+
+  model_offset <- fit$offset
+  if (is.null(model_offset)) model_offset <- rep(0, length(pseudo_response))
+  model_offset <- as.numeric(model_offset)
+  if (length(model_offset) != length(pseudo_response) ||
+      any(!is.finite(model_offset))) {
+    stop("fit has an invalid model offset.")
+  }
+  pseudo_response <- pseudo_response - model_offset
 
   beta         <- fit$coefficients
   X            <- predict(fit, newdata = fit$model, type = "lpmatrix")

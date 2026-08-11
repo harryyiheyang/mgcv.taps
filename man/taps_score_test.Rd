@@ -2,7 +2,7 @@
 % Please edit documentation in R/taps_score_test.R
 \name{taps_score_test}
 \alias{taps_score_test}
-\title{Score Test for a Specified Smooth Term in an mgcv GAM/BAM/gamm4 Model}
+\title{Conditional Post-Estimation Evaluation for a Specified Smooth Term}
 \usage{
 taps_score_test(
   fit,
@@ -12,16 +12,13 @@ taps_score_test(
   max_eps = 1e-08,
   max_iter = 1e+05,
   eps_mu = 1e-12,
-  n_threads = 1,
-  include_re = FALSE
+  n_threads = 1
 )
 }
 \arguments{
-\item{fit}{A fitted \code{gam}, \code{bam}, or \code{gamm4} model object.
-The \code{gamm4} branch supports the current GLM-style family set used by
-\pkg{gamm4}: Gaussian, binomial, Poisson, Gamma, inverse Gaussian, and
-fixed-theta \code{MASS::negative.binomial()} models. It requires
-\pkg{lme4} >= 2.0.6.}
+\item{fit}{A fitted \code{gam} or \code{bam} model object from \pkg{mgcv}.
+Use [taps_score_test_gamm()] for \code{gamm4} or \code{gammfast} fits, or
+when an explicit fitted random-effect covariance backend is required.}
 
 \item{test.component}{Integer. Index of the smooth term to be tested. Default is \code{1}.}
 
@@ -41,15 +38,7 @@ statistic. One of \code{"davies"} (default), \code{"liu"}, \code{"hbe"},
 \item{eps_mu}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
 
 \item{n_threads}{Integer. Number of threads used by supported pseudo-response
-calculations and the uid-local native random-effect backend. Default is
-\code{1}.}
-
-\item{include_re}{Logical. Whether to use the sparse random-effect path for
-native mgcv \code{re}/\code{fs} smooths, using uid-local block solves
-without a global random-effect design or covariance matrix, or the sparse
-lme4 random-effect factorization for a \code{gamm4} object. Cox PH and
-zero-inflated Poisson fits are not supported with \code{include_re = TRUE}.
-Default is \code{FALSE}.}
+calculations. Default is \code{1}.}
 }
 \value{
 A \code{data.table} with three columns:
@@ -60,14 +49,23 @@ A \code{data.table} with three columns:
   }
 }
 \description{
-Computes a score test for the penalized (smooth) component of a selected
-smooth term in a fitted \code{gam}, \code{bam}, or \code{gamm4} object. The
-\code{gam}/\code{bam} path is handled by \pkg{mgcv}; the \code{gamm4} path
-combines the \pkg{mgcv} smooth representation with the sparse random-effect
-covariance from \pkg{lme4}. The remaining smooth terms are treated as
+Computes a fitted-model quadratic evaluation for the penalized component of
+a selected smooth term in a fitted \code{gam} or \code{bam} object. The
+model is handled exactly through its mgcv smooth representation. Hence
+mgcv \code{re}/\code{fs} terms, when present, are ordinary fitted smoothing
+components in this interface; no separate random-effect covariance backend
+is activated. The remaining smooth terms are treated as
 nuisance components and are profiled out via a structured covariance
 approximation. P-values can be computed by several methods for quadratic
 forms in normal variables.
+}
+\details{
+The historical score-test name is retained for compatibility. The fitted
+coefficients, smoothing parameters, and dispersion are frozen, and no null
+model is refitted. Hence
+this is a conditional post-estimation evaluation rather than a Rao score
+test. Calibration uses the weighted quadratic-form spectrum; it is not a
+Gaussian `U / sqrt(I)` test.
 }
 \examples{
 \dontrun{
