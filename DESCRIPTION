@@ -21,9 +21,7 @@ Imports:
     CppMatrix
 Suggests:
     gamm4 (>= 0.3.0),
-    lme4 (>= 2.0.6),
-    testthat (>= 3.0.0)
-Config/testthat/edition: 3
+    lme4 (>= 2.0.6)
 LinkingTo:
     Rcpp,
     RcppArmadillo

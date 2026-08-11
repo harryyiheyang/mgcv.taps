@@ -2,7 +2,7 @@
 % Please edit documentation in R/gammfast_variance_test.R
 \name{gammfast_variance_test}
 \alias{gammfast_variance_test}
-\title{Post-estimation variance-component test for gammfast}
+\title{Post-estimation subject-covariance quadratic evaluation for gammfast}
 \usage{
 gammfast_variance_test(
   fit,
@@ -17,51 +17,42 @@ gammfast_variance_test(
 )
 }
 \arguments{
-\item{fit}{A converged `gammfast` fit from any family supported by
-[gammfast()].}
+\item{fit}{A converged `gammfast` fit.}
 
-\item{method}{Quadratic-form p-value method. `"auto"` uses Davies for an
-exact spectrum and randomized Liu for a stochastic spectrum.}
+\item{method}{Quadratic-form p-value method.}
 
-\item{spectrum}{Spectrum evaluation, `"auto"`, `"exact"`, or
-`"randomized"`. The automatic path switches above `q_threshold`.}
+\item{spectrum}{Exact or randomized spectrum evaluation.}
 
-\item{q_threshold}{Maximum random-effect coefficient dimension for the
-automatic exact path.}
+\item{q_threshold}{Maximum fitted subject-covariance factor dimension for
+automatic exact evaluation.}
 
-\item{n_probe}{Number of Rademacher probes for randomized spectral moments.}
+\item{n_probe}{Number of Rademacher probes for randomized moments.}
 
-\item{seed}{Reproducible random-projection seed.}
+\item{seed}{Reproducible randomized-spectrum seed.}
 
-\item{max_eps}{Absolute error tolerance for Davies' method.}
+\item{max_eps}{Davies absolute error tolerance.}
 
-\item{max_iter}{Maximum integration steps for Davies' method.}
+\item{max_iter}{Davies maximum integration steps.}
 
-\item{n_threads}{Number of subject-level OpenMP threads.}
+\item{n_threads}{Number of OpenMP threads.}
 }
 \value{
-A one-row `data.table` containing the statistic, p-value, reference
-  rank, and computation details.
+A one-row `data.table` with the quadratic statistic, p-value, and
+  computation diagnostics.
 }
 \description{
-Evaluates the fitted subject-level random structure using one completed
-`gammfast()` fit. The fitted covariance `G`, global smoothing
-parameters, dispersion, coefficients, and BLUPs are frozen. No null model
-is fitted and no PIRLS, REML, BLUP, or smoothing-parameter iteration is run.
+Evaluates the entire fitted subject-level covariance after projecting the
+unpenalized fixed-effect space. Global penalized smooths enter the fitted
+null working covariance as low-rank covariance components. The fitted
+coefficients, smoothing parameters, dispersion, family parameters, and
+subject covariance are frozen; no null model or fitting iteration is run.
 }
 \details{
-The statistic is the Wood-type random-effect quadratic form obtained after
-profiling the global mean coefficients while retaining their fitted
-penalties. Its conditional reference distribution is a weighted sum of
-independent chi-squared variables. For Gaussian fits this is the fitted
-Gaussian working model. For every supported non-Gaussian family it is the
-final PIRLS working-Gaussian model, using the family's final working weights
-and fitted scale. The exact spectrum or randomized spectral moments are
-evaluated in C++.
-
-This is a Wood-type conditional post-estimation evaluation of the joint
-fitted random structure. It freezes all fitted parameters, performs no null
-refit or Schur projection, and is not a Rao or Gaussian `U / sqrt(I)` score
-test. Binary fits currently use this same conditional working-model
-calibration; no CPQL small-sample correction is applied.
+The statistic is `r' P0 K P0 r`, where `K` is the complete fitted
+subject-level covariance and `P0` is the fixed-effect projection under the
+target-free covariance `V0 = R + K_global`. Thus the tested subject
+covariance supplies the quadratic kernel but is excluded from the null
+projection covariance. Its reference distribution is a
+weighted sum of independent chi-squared variables, evaluated by Davies or
+randomized Liu. This is not a Rao score test and does not test `vec(G)`.
 }

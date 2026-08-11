@@ -1,38 +1,3 @@
-#' Legacy Conditional TAPS Evaluation for a gammfast Fit
-#'
-#' This compatibility entry point is superseded by [taps_score_test_gamm()].
-#' It accepts only a [gammfast()] fit, emits a deprecation warning, and forwards
-#' unchanged arguments to the unified interface. The implementation lives only
-#' in the unified backend, preventing the two interfaces from drifting.
-#' No null model is refitted; the historical score-test name is retained only
-#' for compatibility.
-#'
-#' @param fit A fitted `gammfast` object.
-#' @param test.component Integer index of the global smooth to test.
-#' @param null.tol Row-norm threshold for penalty null-space detection.
-#' @param method Quadratic-form p-value method.
-#' @param max_eps Absolute error tolerance for Davies' method.
-#' @param max_iter Maximum integration steps for Davies' method.
-#' @param n_threads Number of subject-level OpenMP threads.
-#'
-#' @return The result from [taps_score_test_gamm()].
-#' @export
-taps_score_test_gammfast <- function(fit, test.component = 1,
-                                     null.tol = 1e-10,
-                                     method = "davies",
-                                     max_eps = 1e-8, max_iter = 1e5,
-                                     n_threads = 1L) {
-  if (!inherits(fit, "gammfast")) {
-    stop("fit must be a 'gammfast' object.")
-  }
-  .Deprecated("taps_score_test_gamm", package = "mgcv.taps")
-  taps_score_test_gamm(
-    fit = fit, test.component = test.component, null.tol = null.tol,
-    method = method, max_eps = max_eps, max_iter = max_iter,
-    n_threads = n_threads
-  )
-}
-
 taps_score_test_gammfast_impl <- function(fit, test.component = 1,
                                            null.tol = 1e-10,
                                            method = "davies",

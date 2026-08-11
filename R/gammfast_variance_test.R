@@ -1,41 +1,32 @@
-#' Post-estimation variance-component test for gammfast
+#' Post-estimation subject-covariance quadratic evaluation for gammfast
 #'
-#' Evaluates the fitted subject-level random structure using one completed
-#' `gammfast()` fit. The fitted covariance `G`, global smoothing
-#' parameters, dispersion, coefficients, and BLUPs are frozen. No null model
-#' is fitted and no PIRLS, REML, BLUP, or smoothing-parameter iteration is run.
+#' Evaluates the entire fitted subject-level covariance after projecting the
+#' unpenalized fixed-effect space. Global penalized smooths enter the fitted
+#' null working covariance as low-rank covariance components. The fitted
+#' coefficients, smoothing parameters, dispersion, family parameters, and
+#' subject covariance are frozen; no null model or fitting iteration is run.
 #'
-#' The statistic is the Wood-type random-effect quadratic form obtained after
-#' profiling the global mean coefficients while retaining their fitted
-#' penalties. Its conditional reference distribution is a weighted sum of
-#' independent chi-squared variables. For Gaussian fits this is the fitted
-#' Gaussian working model. For every supported non-Gaussian family it is the
-#' final PIRLS working-Gaussian model, using the family's final working weights
-#' and fitted scale. The exact spectrum or randomized spectral moments are
-#' evaluated in C++.
+#' The statistic is `r' P0 K P0 r`, where `K` is the complete fitted
+#' subject-level covariance and `P0` is the fixed-effect projection under the
+#' target-free covariance `V0 = R + K_global`. Thus the tested subject
+#' covariance supplies the quadratic kernel but is excluded from the null
+#' projection covariance. Its reference distribution is a
+#' weighted sum of independent chi-squared variables, evaluated by Davies or
+#' randomized Liu. This is not a Rao score test and does not test `vec(G)`.
 #'
-#' This is a Wood-type conditional post-estimation evaluation of the joint
-#' fitted random structure. It freezes all fitted parameters, performs no null
-#' refit or Schur projection, and is not a Rao or Gaussian `U / sqrt(I)` score
-#' test. Binary fits currently use this same conditional working-model
-#' calibration; no CPQL small-sample correction is applied.
+#' @param fit A converged `gammfast` fit.
+#' @param method Quadratic-form p-value method.
+#' @param spectrum Exact or randomized spectrum evaluation.
+#' @param q_threshold Maximum fitted subject-covariance factor dimension for
+#'   automatic exact evaluation.
+#' @param n_probe Number of Rademacher probes for randomized moments.
+#' @param seed Reproducible randomized-spectrum seed.
+#' @param max_eps Davies absolute error tolerance.
+#' @param max_iter Davies maximum integration steps.
+#' @param n_threads Number of OpenMP threads.
 #'
-#' @param fit A converged `gammfast` fit from any family supported by
-#'   [gammfast()].
-#' @param method Quadratic-form p-value method. `"auto"` uses Davies for an
-#'   exact spectrum and randomized Liu for a stochastic spectrum.
-#' @param spectrum Spectrum evaluation, `"auto"`, `"exact"`, or
-#'   `"randomized"`. The automatic path switches above `q_threshold`.
-#' @param q_threshold Maximum random-effect coefficient dimension for the
-#'   automatic exact path.
-#' @param n_probe Number of Rademacher probes for randomized spectral moments.
-#' @param seed Reproducible random-projection seed.
-#' @param max_eps Absolute error tolerance for Davies' method.
-#' @param max_iter Maximum integration steps for Davies' method.
-#' @param n_threads Number of subject-level OpenMP threads.
-#'
-#' @return A one-row `data.table` containing the statistic, p-value, reference
-#'   rank, and computation details.
+#' @return A one-row `data.table` with the quadratic statistic, p-value, and
+#'   computation diagnostics.
 #' @export
 gammfast_variance_test <- function(fit,
                                    method = c("auto", "davies", "liu"),
@@ -48,24 +39,20 @@ gammfast_variance_test <- function(fit,
   spectrum <- match.arg(spectrum)
   requested_method <- method
   requested_spectrum <- spectrum
-  if (!inherits(fit, "gammfast")) {
-    stop("fit must be a 'gammfast' object.")
-  }
+  if (!inherits(fit, "gammfast")) stop("fit must be a 'gammfast' object.")
   if (!isTRUE(fit$converged)) {
-    stop("The gammfast fit must converge before variance-component testing.")
+    stop("The gammfast fit must converge before variance-component evaluation.")
   }
   phi0 <- fit$sigma2
   if (length(phi0) != 1L || !is.finite(phi0) || phi0 <= 0) {
     stop("The gammfast fit has an invalid dispersion estimate.")
   }
-  if (is.null(fit$G) || !is.matrix(fit$G) ||
-      any(!is.finite(fit$G))) {
-    stop("The gammfast fit has an invalid random-effect covariance.")
+  if (is.null(fit$G) || !is.matrix(fit$G) || any(!is.finite(fit$G))) {
+    stop("The gammfast fit has an invalid subject covariance.")
   }
   if (length(n_threads) != 1L || !is.finite(n_threads) || n_threads < 1) {
     stop("n_threads must be a positive integer.")
   }
-  n_threads <- as.integer(n_threads)
   if (length(q_threshold) != 1L || !is.finite(q_threshold) ||
       q_threshold < 1 || q_threshold != as.integer(q_threshold)) {
     stop("q_threshold must be a positive integer.")
@@ -77,6 +64,7 @@ gammfast_variance_test <- function(fit,
   if (length(seed) != 1L || !is.finite(seed) || seed != as.integer(seed)) {
     stop("seed must be one finite integer.")
   }
+  n_threads <- as.integer(n_threads)
   q_threshold <- as.integer(q_threshold)
   n_probe <- as.integer(n_probe)
   seed <- as.integer(seed)
@@ -87,7 +75,8 @@ gammfast_variance_test <- function(fit,
   B <- random$B / sqrt(phi0)
   gaussian_family <- identical(tolower(fit$family$family[1]), "gaussian")
   if (gaussian_family) {
-    R_diag <- rep(1, nrow(X))
+    response <- (fit$y - fit$offset) / sqrt(phi0)
+    R_diag <- rep(1, length(response))
     working_model <- "Gaussian"
   } else {
     work <- gammfast_working(
@@ -95,8 +84,9 @@ gammfast_variance_test <- function(fit,
       nthreads = n_threads
     )
     if (any(work$w <= 0)) {
-      stop("The final PIRLS working weights must be positive for variance testing.")
+      stop("The final PIRLS working weights must be positive.")
     }
+    response <- (work$z - fit$offset) / sqrt(phi0)
     R_diag <- 1 / work$w
     working_model <- "final PIRLS working Gaussian"
   }
@@ -125,104 +115,119 @@ gammfast_variance_test <- function(fit,
     stop("Davies calibration requires spectrum = 'exact'.")
   }
 
-  if (spectrum_used == "exact") {
-    spectrum_result <- gammfast_re_quadratic_spectrum(
-      X = X, B = B, id = random$id.index, G = fit$G,
-      R_diag = R_diag, penalty = penalty,
-      random_effects = as.matrix(fit$random.effects),
-      n_threads = n_threads
-    )
-    lambda <- spectrum_result$lambda
-    lambda_scale <- max(lambda)
-    if (!is.finite(lambda_scale) || lambda_scale <= 0) {
-      stop("The variance-component reference distribution has zero rank.")
-    }
-    lambda <- lambda[lambda > lambda_scale * .Machine$double.eps^0.8]
-    statistic <- spectrum_result$statistic
-    moment_relative_mcse <- NA_real_
-    reference_rank <- length(lambda)
-    information_rank <- spectrum_result$information_rank
-    probe_count <- NA_integer_
-  } else {
+  probes <- matrix(numeric(), 0L, 0L)
+  if (spectrum_used == "randomized") {
     had_seed <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
     if (had_seed) old_seed <- get(".Random.seed", envir = .GlobalEnv)
     on.exit({
       if (had_seed) {
         assign(".Random.seed", old_seed, envir = .GlobalEnv)
-      } else if (exists(".Random.seed", envir = .GlobalEnv,
-                        inherits = FALSE)) {
+      } else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
         rm(".Random.seed", envir = .GlobalEnv)
       }
     }, add = TRUE)
     set.seed(seed)
-    probes <- matrix(
-      sample(c(-1, 1), q * n_probe, replace = TRUE),
-      nrow = q, ncol = n_probe
-    )
-    spectrum_result <- gammfast_re_quadratic_random_moments(
-      X = X, B = B, id = random$id.index, G = fit$G,
-      R_diag = R_diag, penalty = penalty,
-      random_effects = as.matrix(fit$random.effects), probes = probes,
-      n_threads = n_threads
-    )
-    moments <- spectrum_result$moments
-    moment_mcse <- apply(spectrum_result$probe_moments, 2L, stats::sd) /
-      sqrt(n_probe)
-    moment_relative_mcse <- max(moment_mcse / abs(moments))
-    statistic <- spectrum_result$statistic
-    reference_rank <- NA_integer_
-    information_rank <- NA_integer_
-    probe_count <- n_probe
+    probes <- matrix(sample(c(-1, 1), q * n_probe, replace = TRUE),
+                     nrow = q, ncol = n_probe)
+  }
+  result <- gammfast_variance_quadratic(
+    response = response, X = X, beta = fit$coefficients,
+    B = B, id = random$id.index, G = fit$G, R_diag = R_diag,
+    penalty = penalty, probes = probes,
+    exact = identical(spectrum_used, "exact"),
+    eigen_tol = 1e-8, n_threads = n_threads
+  )
+  if (result$g_negative > 0L) {
+    warning(result$g_negative, " negative fitted-covariance eigenvalue(s) were removed; minimum = ",
+            format(result$g_min_eigen, digits = 4), ".")
+  }
+  if (result$penalty_negative > 0L) {
+    warning(result$penalty_negative, " negative global-penalty eigenvalue(s) were removed; minimum = ",
+            format(result$penalty_min_eigen, digits = 4), ".")
+  }
+  if (result$reference_negative > 0L) {
+    warning(result$reference_negative, " negative reference eigenvalue(s) were removed; minimum = ",
+            format(result$reference_min_eigen, digits = 4), ".")
   }
 
-  p_method <- method_used
-  fallback <- FALSE
-  fallback_from <- NA_character_
-  davies_ifault <- NA_integer_
-  if (method_used == "davies") {
-    calibration <- gammfast_quadratic_pvalue(
-      statistic = statistic, lambda = lambda, method = "davies",
-      max_eps = max_eps, max_iter = max_iter
-    )
-    p_value <- calibration$p.value
-    p_method <- calibration$method
-    fallback <- calibration$fallback
-    fallback_from <- calibration$fallback.from
-    davies_ifault <- calibration$davies.ifault
-  } else if (spectrum_used == "exact") {
-    p_value <- compute_liu_pvalue(statistic, lambda)
+  statistic <- result$statistic
+  moment_relative_mcse <- NA_real_
+  reference_rank <- NA_integer_
+  probe_count <- NA_integer_
+  reference_mean <- NA_real_
+  reference_sd <- NA_real_
+  if (spectrum_used == "exact") {
+    lambda <- result$lambda
+    lambda <- lambda[is.finite(lambda) & lambda > 0]
+    if (!length(lambda)) {
+      warning("The fitted subject covariance has zero positive reference rank.")
+      p_value <- NA_real_
+      p_method <- NA_character_
+      fallback <- FALSE
+      fallback_from <- NA_character_
+      davies_ifault <- NA_integer_
+    } else if (method_used == "davies") {
+      calibration <- gammfast_quadratic_pvalue(
+        statistic, lambda, "davies", max_eps, max_iter
+      )
+      p_value <- calibration$p.value
+      p_method <- calibration$method
+      fallback <- calibration$fallback
+      fallback_from <- calibration$fallback.from
+      davies_ifault <- calibration$davies.ifault
+    } else {
+      p_value <- compute_liu_pvalue(statistic, lambda)
+      p_method <- "liu"
+      fallback <- FALSE
+      fallback_from <- NA_character_
+      davies_ifault <- NA_integer_
+    }
+    reference_rank <- length(lambda)
+    if (length(lambda)) {
+      reference_mean <- sum(lambda)
+      reference_sd <- sqrt(2 * sum(lambda^2))
+    }
   } else {
+    moments <- result$moments
+    probe_moments <- result$probe_moments
+    moment_mcse <- apply(probe_moments, 2L, stats::sd) / sqrt(n_probe)
+    moment_relative_mcse <- max(moment_mcse / pmax(abs(moments), .Machine$double.eps))
     p_value <- gammfast_liu_moment_pvalue(statistic, moments)
     p_method <- "randomized-liu"
+    fallback <- FALSE
+    fallback_from <- NA_character_
+    davies_ifault <- NA_integer_
+    probe_count <- n_probe
+    reference_mean <- moments[1L]
+    reference_sd <- sqrt(2 * moments[2L])
   }
 
   data.table::data.table(
-    component = "joint fitted random structure",
-    statistic = statistic,
-    p.value = p_value,
-    requested.method = requested_method,
-    method = p_method,
-    fallback = fallback,
-    fallback.from = fallback_from,
+    component = "joint fitted subject covariance",
+    statistic = statistic, p.value = p_value,
+    requested.method = requested_method, method = p_method,
+    fallback = fallback, fallback.from = fallback_from,
     davies.ifault = davies_ifault,
-    requested.spectrum = requested_spectrum,
-    spectrum = spectrum_used,
-    reference.rank = reference_rank,
-    information.rank = information_rank,
-    n.probe = probe_count,
+    requested.spectrum = requested_spectrum, spectrum = spectrum_used,
+    reference.rank = reference_rank, n.probe = probe_count,
+    reference.mean = reference_mean, reference.sd = reference_sd,
+    statistic.to.reference.mean = statistic / reference_mean,
     moment.relative.mcse = moment_relative_mcse,
-    n.subject = spectrum_result$n_subject,
-    basis.dimension = spectrum_result$basis_dimension,
-    random.groups = length(random$groups),
-    family = fit$family$family[1],
+    n.subject = result$n_subject,
+    basis.dimension = result$basis_dimension,
+    fixed.effect.rank = result$fixed_rank,
+    global.smooth.rank = result$smooth_rank,
+    random.groups = length(random$groups), family = fit$family$family[1],
     working.model = working_model,
+    quadratic.form = "r' P0 K_subject P0 r",
+    projection.covariance = "R + K_global_smooth",
+    tested.covariance.in.projection = FALSE,
+    fixed.effect.projected = TRUE,
+    global.smooth.as.covariance = TRUE,
+    vec.G.test = FALSE, score.test = FALSE,
     cpql.corrected = FALSE,
-    conditional = TRUE,
-    null.refit = FALSE,
-    post.estimation = TRUE,
-    fitted.parameters.frozen = TRUE,
-    gaussian.score = FALSE,
-    schur = FALSE,
+    conditional = TRUE, null.refit = FALSE, post.estimation = TRUE,
+    fitted.parameters.frozen = TRUE, gaussian.score = FALSE,
     full.random.design = FALSE
   )
 }
@@ -239,22 +244,17 @@ gammfast_quadratic_pvalue <- function(statistic, lambda,
     stop("lambda must contain positive finite weights.")
   }
   if (method == "liu") {
-    return(list(
-      p.value = compute_liu_pvalue(statistic, lambda),
-      method = "liu", fallback = FALSE,
-      fallback.from = NA_character_, davies.ifault = NA_integer_
-    ))
+    return(list(p.value = compute_liu_pvalue(statistic, lambda),
+                method = "liu", fallback = FALSE,
+                fallback.from = NA_character_, davies.ifault = NA_integer_))
   }
-
   davies_result <- CompQuadForm::davies(
     q = statistic, lambda = lambda, lim = max_iter, acc = max_eps
   )
   p_value <- davies_result$Qq
   fallback <- !is.finite(p_value) || p_value <= 0 || p_value > 1 ||
     davies_result$ifault != 0
-  if (fallback) {
-    p_value <- compute_liu_pvalue(statistic, lambda)
-  }
+  if (fallback) p_value <- compute_liu_pvalue(statistic, lambda)
   list(
     p.value = p_value,
     method = if (fallback) "liu-fallback" else "davies",
@@ -269,8 +269,7 @@ gammfast_liu_moment_pvalue <- function(q, moments) {
   c2 <- moments[2L]
   c3 <- moments[3L]
   c4 <- moments[4L]
-  if (length(moments) != 4L || any(!is.finite(moments)) ||
-      any(moments <= 0)) {
+  if (length(moments) != 4L || any(!is.finite(moments)) || any(moments <= 0)) {
     stop("The randomized spectral moments must be positive and finite.")
   }
   s1 <- c3 / c2^(3 / 2)
@@ -289,7 +288,6 @@ gammfast_liu_moment_pvalue <- function(q, moments) {
   tstar <- (q - muQ) / sigmaQ
   muX <- l + delta
   sigmaX <- sqrt(2) * a
-  stats::pchisq(
-    tstar * sigmaX + muX, df = l, ncp = delta, lower.tail = FALSE
-  )
+  stats::pchisq(tstar * sigmaX + muX, df = l, ncp = delta,
+                lower.tail = FALSE)
 }
