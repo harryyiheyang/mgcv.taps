@@ -231,8 +231,7 @@ gammblup <- function(object, ids, newdata = NULL,
     for (iteration in seq_len(max.iter)) {
       eta <- eta_global + rowSums(B_estimate * u[estimate_id, , drop = FALSE])
       work <- gammfast_working(
-        object$family, response, eta, weights[estimate_rows],
-        nthreads = n_threads
+        object$family, response, eta, weights[estimate_rows]
       )
       sw <- sqrt(work$w / object$sig2)
       moments <- gammfast_gaussian_moments(

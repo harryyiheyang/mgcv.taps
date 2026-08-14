@@ -13,6 +13,8 @@ zip_joint_information <- function(X, gamma, y, theta, family, weights) {
     stop("The ZIP score test supports only mgcv::ziP().")
   }
 
+  # ZIP is profiled with the observed joint likelihood curvature. It is not
+  # the expected/Fisher working-Gaussian construction used by the generic path.
   d <- family$Dd(y, gamma, theta, wt = weights, level = 2)
   s <- -as.numeric(d$Dmu) / 2
   h <- as.numeric(d$Dmu2) / 2

@@ -65,7 +65,8 @@ u <- matrix(rnorm(nid * 2L, sd = 0.4), nid, 2L)
 got <- mgcv.taps:::gammfast_laplace_variance_step(
   X_penalized = Xp, B = B, id = id, G = G,
   smooth_precision = R, working_weight = w,
-  weight_derivative = dw, u = u, n_threads = 2L
+  determinant_weight = w, determinant_derivative = dw,
+  u = u, n_threads = 2L
 )
 
 ns <- ncol(Xp)

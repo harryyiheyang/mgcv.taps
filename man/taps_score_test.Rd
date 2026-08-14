@@ -35,10 +35,11 @@ statistic. One of \code{"davies"} (default), \code{"liu"}, \code{"hbe"},
 \item{max_iter}{Integer. Maximum number of integration steps passed to
 \code{CompQuadForm::davies}. Default is \code{1e5}.}
 
-\item{eps_mu}{Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.}
+\item{eps_mu}{Numeric. Tolerance passed to \code{extract_pseudo_response}.
+Default is \code{1e-12}.}
 
 \item{n_threads}{Integer. Number of threads used by supported pseudo-response
-calculations. Default is \code{1}.}
+and structured random-effect calculations. Default is \code{1}.}
 }
 \value{
 A \code{data.table} with three columns:

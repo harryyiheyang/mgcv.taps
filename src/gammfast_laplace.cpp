@@ -26,7 +26,8 @@ List gammfast_laplace_variance_step(
     const arma::mat& G,
     const arma::mat& smooth_precision,
     const arma::vec& working_weight,
-    const arma::vec& weight_derivative,
+    const arma::vec& determinant_weight,
+    const arma::vec& determinant_derivative,
     const arma::mat& u,
     int n_threads = 1) {
   const int n = B.n_rows;
@@ -35,7 +36,8 @@ List gammfast_laplace_variance_step(
   if (X_penalized.n_rows != static_cast<arma::uword>(n) ||
       id.n_elem != static_cast<arma::uword>(n) ||
       working_weight.n_elem != static_cast<arma::uword>(n) ||
-      weight_derivative.n_elem != static_cast<arma::uword>(n)) {
+      determinant_weight.n_elem != static_cast<arma::uword>(n) ||
+      determinant_derivative.n_elem != static_cast<arma::uword>(n)) {
     stop("Laplace variance-step inputs must have matching rows.");
   }
   if (G.n_rows != static_cast<arma::uword>(q) ||
@@ -56,8 +58,10 @@ List gammfast_laplace_variance_step(
   }
   if (!X_penalized.is_finite() || !B.is_finite() || !G.is_finite() ||
       !smooth_precision.is_finite() || !working_weight.is_finite() ||
-      !weight_derivative.is_finite() || !u.is_finite() ||
-      arma::any(working_weight < 0.0)) {
+      !determinant_weight.is_finite() ||
+      !determinant_derivative.is_finite() || !u.is_finite() ||
+      arma::any(working_weight < 0.0) ||
+      arma::any(determinant_weight < 0.0)) {
     stop("Laplace variance-step inputs must be finite with nonnegative weights.");
   }
 
@@ -118,6 +122,60 @@ List gammfast_laplace_variance_step(
     );
   }
 
+  const bool shared_determinant = arma::approx_equal(
+    working_weight, determinant_weight, "absdiff", 0.0
+  );
+  arma::mat determinant_schur_inverse = schur_inverse;
+  if (!shared_determinant) {
+    arma::mat determinant_schur = smooth_precision +
+      X_penalized.t() * (X_penalized.each_col() % determinant_weight);
+    std::vector<arma::mat> determinant_schur_thread(
+      nt, arma::mat(ns, ns, arma::fill::zeros)
+    );
+    ok.ones();
+#ifdef _OPENMP
+#pragma omp parallel num_threads(nt)
+#endif
+    {
+      int tid = 0;
+#ifdef _OPENMP
+      tid = omp_get_thread_num();
+#pragma omp for schedule(static)
+#endif
+      for (int g = 0; g < ng; ++g) {
+        arma::uvec ii(rows[g]);
+        const arma::mat Bg = B.rows(ii);
+        const arma::mat Xpg = X_penalized.rows(ii);
+        const arma::mat weighted_B =
+          Bg.each_col() % determinant_weight.elem(ii);
+        arma::mat C;
+        const arma::mat subject_precision = arma::symmatu(
+          precision + Bg.t() * weighted_B
+        );
+        if (!arma::inv_sympd(C, subject_precision)) {
+          ok[g] = 0;
+          continue;
+        }
+        if (ns > 0) {
+          const arma::mat cross = Xpg.t() * weighted_B;
+          determinant_schur_thread[tid] -= cross * C * cross.t();
+        }
+      }
+    }
+    if (arma::any(ok == 0)) {
+      stop("A Laplace determinant UID Hessian was not positive definite.");
+    }
+    for (int t = 0; t < nt; ++t) {
+      determinant_schur += determinant_schur_thread[t];
+    }
+    if (ns > 0) {
+      determinant_schur_inverse = inverse_spd(
+        determinant_schur,
+        "The Laplace determinant mean Schur complement was not positive definite."
+      );
+    }
+  }
+
   arma::vec a(n, arma::fill::zeros);
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static) num_threads(nt)
@@ -126,7 +184,8 @@ List gammfast_laplace_variance_step(
     arma::uvec ii(rows[g]);
     const arma::mat Bg = B.rows(ii);
     const arma::mat Xpg = X_penalized.rows(ii);
-    const arma::mat weighted_B = Bg.each_col() % working_weight.elem(ii);
+    const arma::mat weighted_B =
+      Bg.each_col() % determinant_weight.elem(ii);
     const arma::mat C = inverse_spd(
       precision + Bg.t() * weighted_B,
       "A Laplace variance-step leverage Hessian was not positive definite."
@@ -136,9 +195,11 @@ List gammfast_laplace_variance_step(
     if (ns > 0) {
       const arma::mat cross = Xpg.t() * weighted_B;
       const arma::mat effective = Xpg - BC * cross.t();
-      leverage += arma::sum((effective * schur_inverse) % effective, 1);
+      leverage += arma::sum(
+        (effective * determinant_schur_inverse) % effective, 1
+      );
     }
-    a.elem(ii) = 0.5 * weight_derivative.elem(ii) % leverage;
+    a.elem(ii) = 0.5 * determinant_derivative.elem(ii) % leverage;
   }
 
   arma::vec smooth_rhs = X_penalized.t() * a;

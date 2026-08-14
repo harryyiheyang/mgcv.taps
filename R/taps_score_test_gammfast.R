@@ -8,8 +8,7 @@ taps_score_test_gammfast_impl <- function(fit, test.component = 1,
   }
   g <- fit$global
   work <- gammfast_working(
-    fit$family, fit$y, fit$linear.predictors, fit$prior.weights,
-    nthreads = n_threads
+    fit$family, fit$y, fit$linear.predictors, fit$prior.weights
   )
   model_offset <- fit$offset
   if (is.null(model_offset)) model_offset <- g$offset

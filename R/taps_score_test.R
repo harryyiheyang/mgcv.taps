@@ -30,9 +30,10 @@
 #'   \code{CompQuadForm::davies}. Default is \code{1e-8}.
 #' @param max_iter Integer. Maximum number of integration steps passed to
 #'   \code{CompQuadForm::davies}. Default is \code{1e5}.
-#' @param eps_mu Numeric. Tolerance passed to \code{extract_pseudo_response}. Default is \code{1e-12}.
+#' @param eps_mu Numeric. Tolerance passed to \code{extract_pseudo_response}.
+#'   Default is \code{1e-12}.
 #' @param n_threads Integer. Number of threads used by supported pseudo-response
-#'   calculations. Default is \code{1}.
+#'   and structured random-effect calculations. Default is \code{1}.
 #'
 #' @return A \code{data.table} with three columns:
 #'   \describe{
@@ -82,8 +83,9 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
     ))
   }
 
-  res <- extract_pseudo_response(fit,
-                                 eps_mu = eps_mu, n_threads = n_threads)
+  res <- extract_pseudo_response(
+    fit, eps_mu = eps_mu, n_threads = n_threads
+  )
 
   pseudo_response <- res$pseudo_response
   V_phi           <- res$V_phi

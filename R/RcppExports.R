@@ -25,8 +25,8 @@ gammfast_vinv_apply <- function(A, B, id, G, R_diag, n_threads = 1L) {
     .Call(`_mgcv_taps_gammfast_vinv_apply`, A, B, id, G, R_diag, n_threads)
 }
 
-gammfast_laplace_variance_step <- function(X_penalized, B, id, G, smooth_precision, working_weight, weight_derivative, u, n_threads = 1L) {
-    .Call(`_mgcv_taps_gammfast_laplace_variance_step`, X_penalized, B, id, G, smooth_precision, working_weight, weight_derivative, u, n_threads)
+gammfast_laplace_variance_step <- function(X_penalized, B, id, G, smooth_precision, working_weight, determinant_weight, determinant_derivative, u, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_laplace_variance_step`, X_penalized, B, id, G, smooth_precision, working_weight, determinant_weight, determinant_derivative, u, n_threads)
 }
 
 gammfast_projected_moments <- function(response, X, B, id, G, penalty, return_projection = FALSE, eigen_tol = 1e-10, n_threads = 1L) {

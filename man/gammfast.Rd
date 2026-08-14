@@ -24,10 +24,10 @@ more custom `fs(x, id, k)` markers. Standard mgcv
 
 \item{data}{A data frame.}
 
-\item{family}{An mgcv family object. Supported families are Gaussian with
-identity link, binomial with logit or probit link, Poisson and
-quasi-Poisson with log link, negative binomial, scaled t, beta regression,
-Tweedie, and ordered categorical.}
+\item{family}{An mgcv family object. Supported families are Gaussian,
+binomial and quasi-binomial, Poisson and quasi-Poisson, Gamma, inverse
+Gaussian, quasi-likelihood, negative binomial, scaled t, beta regression,
+and Tweedie. Standard links supported by mgcv are accepted.}
 
 \item{weights}{Optional prior weights.}
 
@@ -64,9 +64,12 @@ smooth terms use the `mgcv` fREML machinery.
   its fREML machinery estimates global smoothing parameters and dispersion.
   `gammfast()` replaces only the working cross-products by their current
   shared-UID marginal forms and estimates the subject covariance without
-  expanding an `n` by `n_subject * q` random-effect design. For canonical
-  binomial-logit and Poisson-log models, the covariance score includes the
-  conditional, penalized-mean, and Laplace conditional-mode corrections.
+  expanding an `n` by `n_subject * q` random-effect design. For models for
+  which the expected working-curvature derivative is available, the covariance
+  score includes the conditional, penalized-mean, and Laplace conditional-mode
+  corrections. Gamma and inverse-Gaussian models retain mgcv Fisher weights for
+  P-IRLS while using family-specific observed curvature only in the Laplace
+  determinant correction.
   Global smooths remain mgcv mean coefficients with a `paraPen` precision;
   their covariance coupling is evaluated by a low-dimensional Schur
   complement. Extended-family nuisance parameters are updated by mgcv's

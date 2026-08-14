@@ -23,7 +23,8 @@ fit.qp <- gammfast(
 if (!isTRUE(fit.qp$converged) || !is.finite(fit.qp$sig2) ||
     fit.qp$sig2 <= 1 ||
     fit.qp$dispersion.method != "mgcv-fREML" ||
-    fit.qp$covariance.method != "mean-Hessian-projected-moment") {
+    fit.qp$covariance.method !=
+      "mgcv-fREML-shared-UID-Laplace-fixedpoint") {
   stop("Quasi-Poisson scale handling is inconsistent.")
 }
 if (!is.null(fit.qp$sigma2) || !is.null(fit.qp$G.normalized) ||
@@ -37,7 +38,7 @@ if (max(abs(fit.qp$random$covariance[[1L]] - fit.qp$G)) > 1e-12) {
 random.qp <- mgcv.taps:::gammfast_random_info(fit.qp)
 work.qp <- mgcv.taps:::gammfast_working(
   fit.qp$family, fit.qp$y, fit.qp$linear.predictors,
-  fit.qp$prior.weights, nthreads = 1L
+  fit.qp$prior.weights
 )
 sw.qp <- sqrt(work.qp$w)
 X.qp <- predict(

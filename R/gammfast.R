@@ -14,10 +14,10 @@ utils::globalVariables(".gammfast_prior_weights")
 #'   more custom `fs(x, id, k)` markers. Standard mgcv
 #'   `s(..., bs = "fs")` terms are not supported by `gammfast()`.
 #' @param data A data frame.
-#' @param family An mgcv family object. Supported families are Gaussian with
-#'   identity link, binomial with logit or probit link, Poisson and
-#'   quasi-Poisson with log link, negative binomial, scaled t, beta regression,
-#'   Tweedie, and ordered categorical.
+#' @param family An mgcv family object. Supported families are Gaussian,
+#'   binomial and quasi-binomial, Poisson and quasi-Poisson, Gamma, inverse
+#'   Gaussian, quasi-likelihood, negative binomial, scaled t, beta regression,
+#'   and Tweedie. Standard links supported by mgcv are accepted.
 #' @param weights Optional prior weights.
 #' @param inner.max Maximum shared-UID covariance updates per mgcv P-IRLS outer
 #'   iteration, between 1 and 30.
@@ -37,9 +37,12 @@ utils::globalVariables(".gammfast_prior_weights")
 #'   its fREML machinery estimates global smoothing parameters and dispersion.
 #'   `gammfast()` replaces only the working cross-products by their current
 #'   shared-UID marginal forms and estimates the subject covariance without
-#'   expanding an `n` by `n_subject * q` random-effect design. For canonical
-#'   binomial-logit and Poisson-log models, the covariance score includes the
-#'   conditional, penalized-mean, and Laplace conditional-mode corrections.
+#'   expanding an `n` by `n_subject * q` random-effect design. For models for
+#'   which the expected working-curvature derivative is available, the
+#'   covariance score includes the conditional, penalized-mean, and Laplace
+#'   conditional-mode corrections. Gamma and inverse-Gaussian models retain
+#'   mgcv Fisher weights for P-IRLS while using family-specific observed
+#'   curvature only in the Laplace determinant correction.
 #'   Global smooths remain mgcv mean coefficients with a `paraPen` precision;
 #'   their covariance coupling is evaluated by a low-dimensional Schur
 #'   complement. Extended-family nuisance parameters are updated by mgcv's
@@ -372,9 +375,13 @@ gammfast_validate_family <- function(family) {
     family <- switch(tolower(family),
       gaussian = stats::gaussian(),
       binomial = stats::binomial(),
+      quasibinomial = stats::quasibinomial(),
       poisson = stats::poisson(),
       quasipoisson = stats::quasipoisson(),
-      stop("Character family must be 'gaussian', 'binomial', 'poisson', or 'quasipoisson'; use an mgcv family object otherwise.")
+      gamma = stats::Gamma(),
+      inverse.gaussian = stats::inverse.gaussian(),
+      quasi = stats::quasi(),
+      stop("Unsupported character family; use an mgcv family object for custom settings.")
     )
   }
   if (!inherits(family, "family")) {
@@ -387,33 +394,24 @@ gammfast_validate_family <- function(family) {
   if (grepl("^zero inflated poisson", family_name)) {
     stop("gammfast does not support zero-inflated Poisson because its working Hessian is not observation-diagonal.")
   }
-  gaussian <- identical(family_name, "gaussian")
-  supported <- gaussian ||
+  gaussian_family <- identical(family_name, "gaussian")
+  gaussian <- gaussian_family && identical(family$link, "identity")
+  supported <- gaussian_family ||
     identical(family_name, "binomial") ||
+    identical(family_name, "quasibinomial") ||
     identical(family_name, "poisson") ||
     identical(family_name, "quasipoisson") ||
+    identical(family_name, "gamma") ||
+    identical(family_name, "inverse.gaussian") ||
+    identical(family_name, "quasi") ||
     grepl("^negative binomial", family_name) ||
     identical(family_name, "scaled t") ||
     identical(family_name, "beta regression") ||
-    identical(family_name, "tweedie") ||
-    identical(family_name, "ordered categorical")
+    grepl("^tweedie", family_name)
   if (!supported) {
     stop(
-      "Unsupported family. gammfast currently supports Gaussian, binomial, ",
-      "Poisson, quasi-Poisson, negative binomial, scaled t, beta regression, ",
-      "Tweedie, and ordered categorical."
+      "Unsupported family. See ?gammfast for the supported mgcv families."
     )
-  }
-  if (gaussian && !identical(family$link, "identity")) {
-    stop("Gaussian gammfast currently requires the identity link.")
-  }
-  if (identical(family_name, "binomial") &&
-      !family$link %in% c("logit", "probit")) {
-    stop("Binomial gammfast currently supports only logit and probit links.")
-  }
-  if (family_name %in% c("poisson", "quasipoisson") &&
-      !identical(family$link, "log")) {
-    stop("Poisson and quasi-Poisson gammfast currently require the log link.")
   }
   list(family = family, gaussian = gaussian)
 }
@@ -428,12 +426,11 @@ gammfast_prefit_shell <- function(G0, family) {
   shell$coefficients <- rep(0, ncol(G0$X))
   names(shell$coefficients) <- G0$term.names
   family_name <- tolower(family$family[1])
-  if (identical(family_name, "gaussian")) {
+  if (identical(family_name, "gaussian") &&
+      identical(family$link, "identity")) {
     eta <- shell$y
-  } else if (identical(family_name, "binomial")) {
+  } else if (family_name %in% c("binomial", "quasibinomial")) {
     eta <- rep(family$linkfun(0.5), length(shell$y))
-  } else if (identical(family_name, "ordered categorical")) {
-    eta <- rep(0, length(shell$y))
   } else if (family_name %in% c("poisson", "quasipoisson")) {
     eta <- family$linkfun(shell$y + 0.1)
   } else {
@@ -482,12 +479,15 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
                                   id_factor, random_structure, inner.max,
                                   nthreads, control, verbose, call) {
   family <- shell$family
-  family_name <- tolower(family$family[1])
-  laplace_variance <-
-    (identical(family_name, "binomial") &&
-       identical(family$link, "logit")) ||
-    (identical(family_name, "poisson") &&
-       identical(family$link, "log"))
+  ng <- nlevels(id_factor)
+  eta <- as.numeric(shell$linear.predictors)
+  initial_work <- gammfast_working(
+    family, y, eta, prior_weights
+  )
+  initial_t <- gammfast_t_correction(
+    family, y, eta, prior_weights, initial_work$w
+  )
+  laplace_variance <- !is.null(initial_t)
   laplace_penalty <- if (laplace_variance) {
     gammfast_laplace_penalty_setup(G0)
   } else {
@@ -498,8 +498,6 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
   } else {
     NULL
   }
-  ng <- nlevels(id_factor)
-  eta <- as.numeric(shell$linear.predictors)
   eta_global <- eta
   eta_random <- numeric(length(y))
   initial_variance <- stats::var(eta)
@@ -535,7 +533,10 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     evaluations_start <- variance_evaluations
     updates_start <- local_updates
     work <- gammfast_working(
-      family, y, eta, prior_weights, nthreads = nthreads
+      family, y, eta, prior_weights
+    )
+    t_correction <- gammfast_t_correction(
+      family, y, eta, prior_weights, work$w
     )
     step <- gammfast_general_step(
       G0, Sl, X, work$z - offset, B, id, G,
@@ -578,7 +579,8 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
           X_penalized = X_penalized, B = B, id = id, G = G_now,
           smooth_precision = smooth_precision,
           working_weight = work$w / family_scale,
-          weight_derivative = work$dw / family_scale,
+          determinant_weight = t_correction$weight / family_scale,
+          determinant_derivative = t_correction$derivative / family_scale,
           u = root_scale * mm_now$u, n_threads = nthreads
         )
         moment_now <- vcm_now$moment_sum / (family_scale * ng)
@@ -600,7 +602,10 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
           rowSums(B * u_inner[id, , drop = FALSE])
         local_updates <- local_updates + 1L
         work <- gammfast_working(
-          family, y, eta_inner, prior_weights, nthreads = nthreads
+          family, y, eta_inner, prior_weights
+        )
+        t_correction <- gammfast_t_correction(
+          family, y, eta_inner, prior_weights, work$w
         )
         sw <- sqrt(work$w)
         working_response <- sw * (work$z - offset) / root_scale
@@ -693,7 +698,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
   }
 
   work <- gammfast_working(
-    family, y, eta, prior_weights, nthreads = nthreads
+    family, y, eta, prior_weights
   )
   final <- gammfast_general_step(
     G0, Sl, X, work$z - offset, B, id, G,
@@ -722,7 +727,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
   eta <- eta_global + eta_random
   mu <- family$linkinv(eta)
   work_final <- gammfast_working(
-    family, y, eta, prior_weights, nthreads = nthreads
+    family, y, eta, prior_weights
   )
 
   shell$coefficients <- beta
@@ -790,17 +795,8 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
   fit
 }
 
-gammfast_working <- function(family, y, eta, prior_weights, nthreads) {
-  family_name <- tolower(family$family[1])
-  if (identical(family_name, "ordered categorical")) {
-    out <- ocat_folded(
-      eta = eta, y_int = as.integer(y), alpha = family$getTheta(TRUE),
-      eps_mu = 1e-12, n_threads = nthreads
-    )
-    z <- out$z_star
-    w <- out$w_star
-  } else if (inherits(family, "extended.family") &&
-             is.function(family$Dd)) {
+gammfast_working <- function(family, y, eta, prior_weights) {
+  if (inherits(family, "extended.family") && is.function(family$Dd)) {
     mu <- family$linkinv(eta)
     theta <- family$getTheta()
     Dval <- family$Dd(y, mu, theta, prior_weights, level = 0)
@@ -820,18 +816,100 @@ gammfast_working <- function(family, y, eta, prior_weights, nthreads) {
       !any(w > 0)) {
     stop("The family produced an invalid diagonal PIRLS working system.")
   }
-  dw <- if (identical(family_name, "binomial") &&
-            identical(family$link, "logit")) {
-    w * (1 - 2 * family$linkinv(eta))
-  } else if (identical(family_name, "poisson") &&
-             identical(family$link, "log")) {
-    w
+  list(z = as.numeric(z), w = as.numeric(w))
+}
+
+gammfast_t_correction <- function(family, y, eta, prior_weights,
+                                  working_weight) {
+  family_name <- tolower(family$family[1])
+  mu <- family$linkinv(eta)
+  determinant_weight <- working_weight
+  determinant_derivative <- NULL
+
+  if (inherits(family, "extended.family")) {
+    theta <- family$getTheta(TRUE)
+    family <- utils::getFromNamespace("fix.family.link", "mgcv")(family)
+    link_term <- -2 * family$g2g(mu)
+    mu_eta <- family$mu.eta(eta)
+    if (grepl("^negative binomial", family_name)) {
+      determinant_derivative <- working_weight * (
+        link_term - mu_eta * (1 / mu + 1 / (theta + mu))
+      )
+    } else if (identical(family_name, "tweedie")) {
+      determinant_derivative <- working_weight * (
+        link_term - theta * mu_eta / mu
+      )
+    } else if (identical(family_name, "scaled t")) {
+      determinant_derivative <- working_weight * link_term
+    } else if (identical(family_name, "beta regression")) {
+      information <- base::psigamma(mu * theta, deriv = 1) +
+        base::psigamma((1 - mu) * theta, deriv = 1)
+      information_derivative <- base::psigamma(mu * theta, deriv = 2) -
+        base::psigamma((1 - mu) * theta, deriv = 2)
+      determinant_derivative <- working_weight * (
+        link_term +
+          theta * mu_eta * information_derivative / information
+      )
+    }
   } else {
-    NULL
+    fix_link <- utils::getFromNamespace("fix.family.link", "mgcv")
+    fix_variance <- utils::getFromNamespace("fix.family.var", "mgcv")
+    family <- fix_variance(fix_link(family))
+    mu_eta <- family$mu.eta(eta)
+    mu_eta2 <- -family$d2link(mu) * mu_eta^3
+    variance <- family$variance(mu)
+    variance_derivative <- family$dvar(mu)
+    fisher_derivative <- working_weight * (
+      2 * mu_eta2 / mu_eta -
+        mu_eta * variance_derivative / variance
+    )
+    determinant_derivative <- fisher_derivative
+
+    if (family_name %in% c("gamma", "inverse.gaussian")) {
+      mu_eta3 <- 3 * family$d2link(mu)^2 * mu_eta^5 -
+        family$d3link(mu) * mu_eta^4
+      variance_second <- family$d2var(mu)
+      residual <- y - mu
+      observed_weight <- prior_weights * (
+        mu_eta^2 / variance +
+          residual * variance_derivative * mu_eta^2 / variance^2 -
+          residual * mu_eta2 / variance
+      )
+      observed_derivative <- prior_weights * (
+        3 * mu_eta * mu_eta2 / variance -
+          2 * mu_eta^3 * variance_derivative / variance^2 +
+          residual * (
+            variance_second * mu_eta^3 / variance^2 +
+              3 * variance_derivative * mu_eta * mu_eta2 / variance^2 -
+              2 * variance_derivative^2 * mu_eta^3 / variance^3 -
+              mu_eta3 / variance
+          )
+      )
+      blend <- 1
+      negative <- observed_weight < 0 & working_weight > 0
+      if (any(negative)) {
+        limit <- working_weight[negative] /
+          (working_weight[negative] - observed_weight[negative])
+        blend <- min(1, (1 - sqrt(.Machine$double.eps)) * min(limit))
+      }
+      determinant_weight <- working_weight +
+        blend * (observed_weight - working_weight)
+      determinant_derivative <- fisher_derivative +
+        blend * (observed_derivative - fisher_derivative)
+    }
+  }
+
+  if (is.null(determinant_derivative)) return(NULL)
+  if (length(determinant_weight) != length(y) ||
+      length(determinant_derivative) != length(y) ||
+      any(!is.finite(determinant_weight)) ||
+      any(!is.finite(determinant_derivative)) ||
+      any(determinant_weight < 0)) {
+    stop("The family produced an invalid Laplace determinant correction.")
   }
   list(
-    z = as.numeric(z), w = as.numeric(w),
-    dw = if (is.null(dw)) NULL else as.numeric(dw)
+    weight = as.numeric(determinant_weight),
+    derivative = as.numeric(determinant_derivative)
   )
 }
 
@@ -865,7 +943,11 @@ gammfast_update_theta <- function(family, y, mu, prior_weights, scale) {
 }
 
 gammfast_estimate_working_scale <- function(family) {
-  tolower(family$family[1]) %in% c("quasipoisson", "quasibinomial")
+  family_name <- tolower(family$family[1])
+  family_name %in% c(
+    "gaussian", "gamma", "inverse.gaussian", "quasi", "quasibinomial",
+    "quasipoisson"
+  ) || grepl("^tweedie\\(", family_name)
 }
 
 gammfast_reml_parameters <- function(fr, G0, estimate_phi, phi = 1) {

@@ -80,8 +80,7 @@ gammfast_variance_test <- function(fit,
     working_model <- "Gaussian"
   } else {
     work <- gammfast_working(
-      fit$family, fit$y, fit$linear.predictors, fit$prior.weights,
-      nthreads = n_threads
+      fit$family, fit$y, fit$linear.predictors, fit$prior.weights
     )
     if (any(work$w <= 0)) {
       stop("The final PIRLS working weights must be positive.")

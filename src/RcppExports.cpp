@@ -102,8 +102,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gammfast_laplace_variance_step
-List gammfast_laplace_variance_step(const arma::mat& X_penalized, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::mat& smooth_precision, const arma::vec& working_weight, const arma::vec& weight_derivative, const arma::mat& u, int n_threads);
-RcppExport SEXP _mgcv_taps_gammfast_laplace_variance_step(SEXP X_penalizedSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP smooth_precisionSEXP, SEXP working_weightSEXP, SEXP weight_derivativeSEXP, SEXP uSEXP, SEXP n_threadsSEXP) {
+List gammfast_laplace_variance_step(const arma::mat& X_penalized, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::mat& smooth_precision, const arma::vec& working_weight, const arma::vec& determinant_weight, const arma::vec& determinant_derivative, const arma::mat& u, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_laplace_variance_step(SEXP X_penalizedSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP smooth_precisionSEXP, SEXP working_weightSEXP, SEXP determinant_weightSEXP, SEXP determinant_derivativeSEXP, SEXP uSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -113,10 +113,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type smooth_precision(smooth_precisionSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type working_weight(working_weightSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type weight_derivative(weight_derivativeSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type determinant_weight(determinant_weightSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type determinant_derivative(determinant_derivativeSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type u(uSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_variance_step(X_penalized, B, id, G, smooth_precision, working_weight, weight_derivative, u, n_threads));
+    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_variance_step(X_penalized, B, id, G, smooth_precision, working_weight, determinant_weight, determinant_derivative, u, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -217,7 +218,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_gammfast_gaussian_crossprod", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod, 5},
     {"_mgcv_taps_gammfast_gaussian_moments", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_moments, 6},
     {"_mgcv_taps_gammfast_vinv_apply", (DL_FUNC) &_mgcv_taps_gammfast_vinv_apply, 6},
-    {"_mgcv_taps_gammfast_laplace_variance_step", (DL_FUNC) &_mgcv_taps_gammfast_laplace_variance_step, 9},
+    {"_mgcv_taps_gammfast_laplace_variance_step", (DL_FUNC) &_mgcv_taps_gammfast_laplace_variance_step, 10},
     {"_mgcv_taps_gammfast_projected_moments", (DL_FUNC) &_mgcv_taps_gammfast_projected_moments, 9},
     {"_mgcv_taps_gammfast_variance_quadratic", (DL_FUNC) &_mgcv_taps_gammfast_variance_quadratic, 12},
     {"_mgcv_taps_native_re_uid_profile_create_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_create_cpp, 7},
