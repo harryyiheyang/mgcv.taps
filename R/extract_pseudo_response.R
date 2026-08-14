@@ -95,7 +95,7 @@ extract_pseudo_response <- function(fit, ...) {
     D_eta <- Dval$Dmu * mu_eta
     W_diag <- Dval$EDmu2 * mu_eta^2 / 2
     pseudo_response <- eta - D_eta / (2 * W_diag)
-    phi0 <- if (inherits(fit, "gammfast")) fit$sigma2 else fit$sig2
+    phi0 <- fit$sig2
     if (is.null(phi0) || length(phi0) != 1L ||
         !is.numeric(phi0) || !is.finite(phi0) || phi0 <= 0) {
       phi0 <- 1.0
@@ -111,7 +111,7 @@ extract_pseudo_response <- function(fit, ...) {
     y      <- fit$y
     pseudo_response <- eta + (y - mu) * g_prime_mu
     W_diag <- as.numeric(fit$prior.weights) / (var_mu * g_prime_mu^2)
-    phi0 <- if (inherits(fit, "gammfast")) fit$sigma2 else fit$sig2
+    phi0 <- fit$sig2
     if (is.null(phi0) || length(phi0) != 1L ||
         !is.numeric(phi0) || !is.finite(phi0) || phi0 <= 0) {
       phi0 <- 1.0

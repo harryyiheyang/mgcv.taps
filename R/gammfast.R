@@ -29,9 +29,8 @@ utils::globalVariables(".gammfast_prior_weights")
 #' @param verbose Whether to print outer-iteration diagnostics.
 #'
 #' @return An object of class `"gammfast"` containing the global fit, the full
-#'   random-trajectory covariance `G` on the linear-predictor scale, its
-#'   unit-dispersion representation `G.normalized`, subject BLUPs, fitted values,
-#'   and convergence diagnostics.
+#'   random-trajectory covariance `G` on the linear-predictor scale, subject
+#'   BLUPs, fitted values, and convergence diagnostics.
 #'
 #' @details `gammfast()` deliberately does not use mgcv's discrete fitting
 #'   path. mgcv constructs the global design and penalties (`fit = FALSE`) and
@@ -271,8 +270,8 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     trace <- rbind(trace, data.frame(
       outer = outer, objective = objective,
       dobjective = dobjective, fixedpoint_G = fixedpoint_G,
-      fixedpoint_sigma = 0, dphi = dphi, dsp = dsp,
-      sigma2 = sigma2
+      dphi = dphi, dsp = dsp,
+      sig2 = sigma2
     ))
     if (verbose) {
       cat(
@@ -334,8 +333,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     Ve = final$pp$Ve,
     random.effects = u,
     G = sigma2 * G,
-    G.normalized = G,
-    sigma2 = sigma2,
     dispersion.method = "mgcv-fREML",
     family.parameter.method = "family-fixed",
     covariance.method = "mean-Hessian-projected-moment",
@@ -359,7 +356,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     global = shell,
     family = family,
     random = random_structure,
-    fs = gammfast_legacy_fs(random_structure, sigma2 * G),
     call = match.call(),
     control = control
   )
@@ -670,8 +666,8 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     }
     trace <- rbind(trace, data.frame(
       outer = outer, objective = objective, dobjective = dobjective,
-      fixedpoint_G = fixedpoint_G, fixedpoint_sigma = 0,
-      dphi = dphi, dsp = dsp, sigma2 = family_scale,
+      fixedpoint_G = fixedpoint_G,
+      dphi = dphi, dsp = dsp, sig2 = family_scale,
       eta_change = eta_change, theta_change = theta_update$change,
       variance_evaluations = variance_evaluations - evaluations_start,
       variance_evaluations_total = variance_evaluations,
@@ -740,8 +736,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
   shell$Vp <- final$pp$Vp
   shell$Ve <- final$pp$Ve
 
-  G_normalized <- G
-  G_actual <- family_scale * G_normalized
+  G_actual <- family_scale * G
   random_structure$covariance <- lapply(
     random_structure$group.index,
     function(jj) G_actual[jj, jj, drop = FALSE]
@@ -751,8 +746,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     coefficients = beta,
     Vp = final$pp$Vp,
     Ve = final$pp$Ve,
-    random.effects = u, G = G_actual, G.normalized = G_normalized,
-    sigma2 = family_scale,
+    random.effects = u, G = G_actual,
     dispersion.method = if (estimate_working_phi) {
       "mgcv-fREML"
     } else if (inherits(family, "extended.family") &&
@@ -787,7 +781,6 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     formula = formula, global.formula = global_formula, global = shell,
     family = family,
     random = random_structure,
-    fs = gammfast_legacy_fs(random_structure, G_actual),
     call = call, control = control
   )
   class(fit) <- "gammfast"
@@ -1205,36 +1198,11 @@ gammfast_project_covariance <- function(G, group_index) {
   (out + t(out)) / 2
 }
 
-gammfast_legacy_fs <- function(random_structure, G = NULL) {
-  fs_index <- which(vapply(random_structure$groups, function(x) {
-    identical(x$type, "fs_cosine")
-  }, logical(1)))
-  if (length(fs_index) != 1L) return(NULL)
-  group <- random_structure$groups[[fs_index]]
-  out <- list(
-    time = group$variables, id = random_structure$id, k = group$k,
-    time.range = group$range, id.levels = random_structure$id.levels,
-    B = random_structure$B[, group$columns, drop = FALSE],
-    id.index = random_structure$id.index
-  )
-  if (!is.null(G)) out$G <- G[group$columns, group$columns, drop = FALSE]
-  out
-}
-
 gammfast_random_info <- function(object) {
-  if (!is.null(object$random)) return(object$random)
-  if (is.null(object$fs)) stop("The gammfast object has no random structure.")
-  group <- list(
-    type = "fs_cosine", label = paste0("fs(", object$fs$time, ")"),
-    id = object$fs$id, variables = object$fs$time, k = object$fs$k,
-    range = object$fs$time.range, columns = seq_len(object$fs$k)
-  )
-  list(
-    B = object$fs$B, groups = list(group),
-    group.index = list(seq_len(object$fs$k)),
-    column.names = colnames(object$random.effects), id = object$fs$id,
-    id.levels = object$fs$id.levels, id.index = object$fs$id.index
-  )
+  if (is.null(object$random)) {
+    stop("The gammfast object has no random structure.")
+  }
+  object$random
 }
 
 gammfast_random_design <- function(random_structure, newdata) {

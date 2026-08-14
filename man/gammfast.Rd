@@ -47,9 +47,8 @@ mgcv/bam discrete model-matrix representation.}
 }
 \value{
 An object of class `"gammfast"` containing the global fit, the full
-  random-trajectory covariance `G` on the linear-predictor scale, its
-  unit-dispersion representation `G.normalized`, subject BLUPs, fitted values,
-  and convergence diagnostics.
+  random-trajectory covariance `G` on the linear-predictor scale, subject
+  BLUPs, fitted values, and convergence diagnostics.
 }
 \description{
 Fits an additive model with independent subject-level random groups. A

@@ -43,7 +43,7 @@ gammfast_variance_test <- function(fit,
   if (!isTRUE(fit$converged)) {
     stop("The gammfast fit must converge before variance-component evaluation.")
   }
-  phi0 <- fit$sigma2
+  phi0 <- fit$sig2
   if (length(phi0) != 1L || !is.finite(phi0) || phi0 <= 0) {
     stop("The gammfast fit has an invalid dispersion estimate.")
   }

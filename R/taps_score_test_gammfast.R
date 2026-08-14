@@ -19,7 +19,7 @@ taps_score_test_gammfast_impl <- function(fit, test.component = 1,
       any(!is.finite(model_offset))) {
     stop("The gammfast fit has an invalid model offset.")
   }
-  phi0 <- fit$sigma2
+  phi0 <- fit$sig2
   if (length(phi0) != 1L || !is.finite(phi0) || phi0 <= 0) {
     stop("The gammfast fit has an invalid dispersion estimate.")
   }

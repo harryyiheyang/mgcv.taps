@@ -22,10 +22,16 @@ fit.qp <- gammfast(
 )
 if (!isTRUE(fit.qp$converged) || !is.finite(fit.qp$sig2) ||
     fit.qp$sig2 <= 1 ||
-    max(abs(fit.qp$G - fit.qp$sig2 * fit.qp$G.normalized)) > 1e-12 ||
     fit.qp$dispersion.method != "mgcv-fREML" ||
     fit.qp$covariance.method != "mean-Hessian-projected-moment") {
   stop("Quasi-Poisson scale handling is inconsistent.")
+}
+if (!is.null(fit.qp$sigma2) || !is.null(fit.qp$G.normalized) ||
+    !is.null(fit.qp$fs)) {
+  stop("Deprecated duplicate gammfast fields are still present.")
+}
+if (max(abs(fit.qp$random$covariance[[1L]] - fit.qp$G)) > 1e-12) {
+  stop("Quasi-Poisson G is not on the public random-effect scale.")
 }
 
 random.qp <- mgcv.taps:::gammfast_random_info(fit.qp)
@@ -41,7 +47,7 @@ mm.qp <- mgcv.taps:::gammfast_projected_moments(
   response = sw.qp * (work.qp$z - fit.qp$offset) / sqrt(fit.qp$sig2),
   X = X.qp * sw.qp / sqrt(fit.qp$sig2),
   B = random.qp$B * sw.qp, id = random.qp$id.index,
-  G = fit.qp$G.normalized,
+  G = fit.qp$G / fit.qp$sig2,
   penalty = mgcv.taps:::gammfast_penalty_matrix(
     fit.qp$global, fit.qp$sp, scale = fit.qp$sig2
   )
@@ -63,9 +69,12 @@ fit.nb <- gammfast(
 theta.nb <- fit.nb$family$getTheta(TRUE)
 if (!isTRUE(fit.nb$converged) || !is.finite(theta.nb) || theta.nb <= 0 ||
     fit.nb$sig2 != 1 ||
-    fit.nb$family.parameter.method != "mgcv-estimate.theta" ||
-    max(abs(fit.nb$G - fit.nb$G.normalized)) > 1e-12) {
+    fit.nb$family.parameter.method != "mgcv-estimate.theta") {
   stop("Negative-binomial mgcv family-parameter handling is inconsistent.")
+}
+if (!is.null(fit.nb$sigma2) || !is.null(fit.nb$G.normalized) ||
+    !is.null(fit.nb$fs)) {
+  stop("Deprecated duplicate gammfast fields are still present.")
 }
 
 cat("gammfast family-parameter regressions passed.\n")
