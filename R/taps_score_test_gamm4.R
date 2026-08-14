@@ -113,6 +113,23 @@ gamm4_v0_inv_apply <- function(V_phi, Zt, Lambdat, scale) {
   }
 }
 
+expand_penalty_to_coefficients <- function(S_matrix, n_coef, smooth_label) {
+  S_matrix <- as.matrix(S_matrix)
+  if (nrow(S_matrix) != ncol(S_matrix)) {
+    stop("Penalty matrix for '", smooth_label, "' must be square.")
+  }
+  if (nrow(S_matrix) == n_coef) return(S_matrix)
+  if (nrow(S_matrix) == 0L || n_coef %% nrow(S_matrix) != 0L) {
+    stop(
+      "Penalty dimension for '", smooth_label,
+      "' is incompatible with its model-matrix columns."
+    )
+  }
+
+  n_block <- n_coef %/% nrow(S_matrix)
+  kronecker(diag(n_block), S_matrix)
+}
+
 gamm4_scaled_penalty <- function(s, sp, phi0, n_coef) {
   if (is.null(s$first.sp) || is.null(s$last.sp)) {
     stop("Penalized smooth has no smoothing-parameter index.")

@@ -25,20 +25,23 @@ more custom `fs(x, id, k)` markers. Standard mgcv
 \item{data}{A data frame.}
 
 \item{family}{An mgcv family object. Supported families are Gaussian with
-identity link, binomial with logit or probit link, negative binomial,
-scaled t, beta regression, Tweedie, and ordered categorical.}
+identity link, binomial with logit or probit link, Poisson and
+quasi-Poisson with log link, negative binomial, scaled t, beta regression,
+Tweedie, and ordered categorical.}
 
 \item{weights}{Optional prior weights.}
 
-\item{inner.max}{Maximum simultaneous covariance updates per outer iteration,
-between 1 and 30.}
+\item{inner.max}{Maximum shared-UID covariance updates per mgcv P-IRLS outer
+iteration, between 1 and 30.}
 
 \item{nthreads}{Number of OpenMP threads used for subject-level operations.}
 
 \item{discrete}{Must be `FALSE`. The current solver does not implement the
 mgcv/bam discrete model-matrix representation.}
 
-\item{control}{A list with `objective.tol`, `fixedpoint.tol`, and `max.outer`.}
+\item{control}{A list with \code{objective.tol}, \code{fixedpoint.tol}, and
+\code{max.outer}. Local covariance updates stop early at
+\code{fixedpoint.tol}.}
 
 \item{verbose}{Whether to print outer-iteration diagnostics.}
 }
@@ -57,14 +60,19 @@ groups share one subject ID and are marginalized by subject, while global
 smooth terms use the `mgcv` fREML machinery.
 }
 \details{
-`gammfast()` deliberately does not use or expose mgcv's discrete
-  fitting path. It uses mgcv only to construct the global design and
-  penalties (`fit = FALSE`); the fitted model is obtained by the
-  subject-marginalized fREML solver rather than a preliminary `gam()` or
-  `bam()` fit. Non-Gaussian PIRLS uses scale-free working weights internally;
-  the returned `sig2`, `G`, `Vp`, and `Ve` use one consistent
-  actual-dispersion scale. Formula offsets are retained in the working
-  response and prediction paths.
+`gammfast()` deliberately does not use mgcv's discrete fitting
+  path. mgcv constructs the global design and penalties (`fit = FALSE`) and
+  its fREML machinery estimates global smoothing parameters and dispersion.
+  `gammfast()` replaces only the working cross-products by their current
+  shared-UID marginal forms and estimates the subject covariance without
+  expanding an `n` by `n_subject * q` random-effect design. For canonical
+  binomial-logit and Poisson-log models, the covariance score includes the
+  conditional, penalized-mean, and Laplace conditional-mode corrections.
+  Global smooths remain mgcv mean coefficients with a `paraPen` precision;
+  their covariance coupling is evaluated by a low-dimensional Schur
+  complement. Extended-family nuisance parameters are updated by mgcv's
+  family-parameter optimizer. Formula offsets are retained in fitting and
+  prediction.
 
 Each custom `fs(x, id, k)` covariate is affinely scaled over its fitted
 range to `[0, 1]`, reflecting the working assumption of approximately

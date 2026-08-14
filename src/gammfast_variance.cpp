@@ -10,9 +10,20 @@ using namespace Rcpp;
 
 namespace {
 
+struct PenaltyParts {
+  arma::mat Us;
+  arma::mat Xf;
+  arma::mat positive_vectors;
+  arma::mat zero_vectors;
+  arma::vec sqrt_positive;
+  int negative;
+  double minimum;
+};
+
 arma::mat sympd_inverse(const arma::mat& A, const char* message) {
   arma::mat out;
-  if (!arma::inv_sympd(out, arma::symmatu(A))) stop(message);
+  const arma::mat S = arma::symmatu(A);
+  if (!arma::inv_sympd(out, S)) stop(message);
   return out;
 }
 
@@ -28,7 +39,288 @@ arma::vec block_apply_vec(const arma::cube& blocks, const arma::vec& x) {
   return out;
 }
 
+PenaltyParts decompose_penalty(const arma::mat& X,
+                               const arma::mat& penalty,
+                               double eigen_tol) {
+  arma::vec values;
+  arma::mat vectors;
+  if (!arma::eig_sym(values, vectors, arma::symmatu(penalty))) {
+    stop("The global penalty eigendecomposition failed.");
+  }
+  const double scale = std::max(1.0, arma::abs(values).max());
+  arma::uvec positive = arma::find(values > eigen_tol * scale);
+  arma::uvec zero = arma::find(values <= eigen_tol * scale);
+  PenaltyParts out;
+  out.negative = arma::sum(values < -eigen_tol * scale);
+  out.minimum = values.min();
+  out.positive_vectors = vectors.cols(positive);
+  out.zero_vectors = vectors.cols(zero);
+  out.sqrt_positive = arma::sqrt(values.elem(positive));
+  out.Us = X * out.positive_vectors;
+  if (positive.n_elem > 0) {
+    out.Us.each_row() %= (1.0 / out.sqrt_positive).t();
+  }
+  out.Xf = X * vectors.cols(zero);
+  return out;
+}
+
 } // namespace
+
+// [[Rcpp::export]]
+List gammfast_projected_moments(const arma::vec& response,
+                                const arma::mat& X,
+                                const arma::mat& B,
+                                const arma::ivec& id,
+                                const arma::mat& G,
+                                const arma::mat& penalty,
+                                bool return_projection = false,
+                                double eigen_tol = 1e-10,
+                                int n_threads = 1) {
+  const int n = response.n_elem;
+  const int p = X.n_cols;
+  const int q = B.n_cols;
+  if (X.n_rows != static_cast<arma::uword>(n) ||
+      B.n_rows != static_cast<arma::uword>(n) ||
+      id.n_elem != static_cast<arma::uword>(n)) {
+    stop("response, X, B, and id must have matching rows.");
+  }
+  if (G.n_rows != static_cast<arma::uword>(q) ||
+      G.n_cols != static_cast<arma::uword>(q)) {
+    stop("G must be square and match ncol(B).");
+  }
+  if (penalty.n_rows != static_cast<arma::uword>(p) ||
+      penalty.n_cols != static_cast<arma::uword>(p)) {
+    stop("penalty must be square and match ncol(X).");
+  }
+  if (!response.is_finite() || !X.is_finite() || !B.is_finite() ||
+      !G.is_finite() || !penalty.is_finite()) {
+    stop("Projected-moment inputs must be finite.");
+  }
+  if (id.n_elem == 0 || id.min() < 1) {
+    stop("id must contain positive consecutive integers.");
+  }
+  const int ng = id.max();
+  std::vector<std::vector<arma::uword>> rows(ng);
+  for (int i = 0; i < n; ++i) rows[id[i] - 1].push_back(i);
+  for (int g = 0; g < ng; ++g) {
+    if (rows[g].empty()) stop("id must contain positive consecutive integers.");
+  }
+
+  arma::mat Ginv = sympd_inverse(G, "G must be positive definite.");
+  PenaltyParts parts = decompose_penalty(X, penalty, eigen_tol);
+  const int ns = parts.Us.n_cols;
+  const int nf = parts.Xf.n_cols;
+
+  arma::mat UtAU(ns, ns, arma::fill::zeros);
+  arma::mat UtAX(ns, nf, arma::fill::zeros);
+  arma::mat XtAX(nf, nf, arma::fill::zeros);
+  arma::vec UtAr(ns, arma::fill::zeros);
+  arma::vec XtAr(nf, arma::fill::zeros);
+  arma::mat U2(ns, ns, arma::fill::zeros);
+  arma::mat U2X(ns, nf, arma::fill::zeros);
+  arma::mat X2(nf, nf, arma::fill::zeros);
+  double trace_Ainv = 0.0;
+
+  for (int g = 0; g < ng; ++g) {
+    arma::uvec ii(rows[g]);
+    arma::mat Bg = B.rows(ii);
+    arma::mat D = sympd_inverse(
+      Ginv + Bg.t() * Bg,
+      "A subject-level posterior precision was not positive definite."
+    );
+    arma::mat AiU = parts.Us.rows(ii);
+    arma::mat AiX = parts.Xf.rows(ii);
+    arma::vec Air = response.elem(ii);
+    if (ns > 0) AiU -= Bg * D * (Bg.t() * AiU);
+    if (nf > 0) AiX -= Bg * D * (Bg.t() * AiX);
+    Air -= Bg * D * (Bg.t() * Air);
+    if (ns > 0) {
+      UtAU += parts.Us.rows(ii).t() * AiU;
+      UtAr += parts.Us.rows(ii).t() * Air;
+      U2 += AiU.t() * AiU;
+    }
+    if (nf > 0) {
+      XtAX += parts.Xf.rows(ii).t() * AiX;
+      XtAr += parts.Xf.rows(ii).t() * Air;
+      X2 += AiX.t() * AiX;
+    }
+    if (ns > 0 && nf > 0) {
+      UtAX += parts.Us.rows(ii).t() * AiX;
+      U2X += AiU.t() * AiX;
+    }
+    trace_Ainv += ii.n_elem - arma::trace(D * (Bg.t() * Bg));
+  }
+
+  arma::mat Cinv(ns, ns, arma::fill::zeros);
+  arma::vec smooth_response(ns, arma::fill::zeros);
+  arma::mat smooth_fixed(ns, nf, arma::fill::zeros);
+  double trace_global = trace_Ainv;
+  if (ns > 0) {
+    Cinv = sympd_inverse(
+      arma::eye(ns, ns) + UtAU,
+      "The global smooth Woodbury system was not positive definite."
+    );
+    smooth_response = Cinv * UtAr;
+    if (nf > 0) smooth_fixed = Cinv * UtAX;
+    trace_global -= arma::trace(Cinv * U2);
+  }
+
+  arma::mat H = XtAX;
+  arma::vec XPr = XtAr;
+  if (ns > 0 && nf > 0) {
+    H -= UtAX.t() * smooth_fixed;
+    XPr -= UtAX.t() * smooth_response;
+  }
+  arma::mat Hinv(nf, nf, arma::fill::zeros);
+  arma::vec fixed_response(nf, arma::fill::zeros);
+  double trace_P = trace_global;
+  if (nf > 0) {
+    Hinv = sympd_inverse(
+      H, "The fixed-effect projected precision was not positive definite."
+    );
+    fixed_response = Hinv * XPr;
+    arma::mat VgX2 = X2;
+    if (ns > 0) {
+      VgX2 -= U2X.t() * smooth_fixed;
+      VgX2 -= smooth_fixed.t() * U2X;
+      VgX2 += smooth_fixed.t() * U2 * smooth_fixed;
+    }
+    trace_P -= arma::trace(Hinv * VgX2);
+  }
+
+  arma::vec beta(p, arma::fill::zeros);
+  arma::mat mean_covariance(p, p, arma::fill::zeros);
+  arma::mat coefficient_transform(p, ns, arma::fill::zeros);
+  if (ns > 0) {
+    arma::vec smooth_coefficient = smooth_response;
+    if (nf > 0) smooth_coefficient -= smooth_fixed * fixed_response;
+    coefficient_transform = parts.positive_vectors;
+    coefficient_transform.each_row() %= (1.0 / parts.sqrt_positive).t();
+    beta += coefficient_transform * smooth_coefficient;
+    arma::mat smooth_covariance = Cinv;
+    if (nf > 0) {
+      smooth_covariance += smooth_fixed * Hinv * smooth_fixed.t();
+    }
+    mean_covariance += coefficient_transform * smooth_covariance *
+      coefficient_transform.t();
+  }
+  if (nf > 0) {
+    beta += parts.zero_vectors * fixed_response;
+    mean_covariance += parts.zero_vectors * Hinv * parts.zero_vectors.t();
+    if (ns > 0) {
+      arma::mat cross_covariance = -smooth_fixed * Hinv;
+      arma::mat full_cross = coefficient_transform * cross_covariance *
+        parts.zero_vectors.t();
+      mean_covariance += full_cross + full_cross.t();
+    }
+  }
+
+  arma::mat u(ng, q, arma::fill::zeros);
+  arma::mat bpr(ng, q, arma::fill::zeros);
+  arma::mat moment_sum(q, q, arma::fill::zeros);
+  arma::mat btpb_sum(q, q, arma::fill::zeros);
+  arma::vec Py(n, arma::fill::zeros);
+  arma::mat PX;
+  if (return_projection) PX.zeros(n, p);
+  if (n_threads < 1) n_threads = 1;
+  const int nt = std::min(n_threads, ng);
+  std::vector<arma::mat> moment_thread(
+    nt, arma::mat(q, q, arma::fill::zeros)
+  );
+  std::vector<arma::mat> btpb_thread(
+    nt, arma::mat(q, q, arma::fill::zeros)
+  );
+  arma::ivec ok(ng, arma::fill::ones);
+
+#ifdef _OPENMP
+#pragma omp parallel num_threads(nt)
+#endif
+  {
+    int tid = 0;
+#ifdef _OPENMP
+    tid = omp_get_thread_num();
+#pragma omp for schedule(static)
+#endif
+    for (int g = 0; g < ng; ++g) {
+      arma::uvec ii(rows[g]);
+      arma::mat Bg = B.rows(ii);
+      arma::mat D;
+      const arma::mat subject_precision = arma::symmatu(Ginv + Bg.t() * Bg);
+      if (!arma::inv_sympd(D, subject_precision)) {
+        ok[g] = 0;
+        continue;
+      }
+      arma::mat AiU = parts.Us.rows(ii);
+      arma::mat AiX = parts.Xf.rows(ii);
+      arma::vec Air = response.elem(ii);
+      arma::mat AiB = Bg;
+      if (ns > 0) AiU -= Bg * D * (Bg.t() * AiU);
+      if (nf > 0) AiX -= Bg * D * (Bg.t() * AiX);
+      Air -= Bg * D * (Bg.t() * Air);
+      AiB -= Bg * D * (Bg.t() * AiB);
+
+      arma::mat CU(q, ns, arma::fill::zeros);
+      arma::mat LPX(q, nf, arma::fill::zeros);
+      if (ns > 0) CU = Bg.t() * AiU;
+      if (nf > 0) {
+        LPX = Bg.t() * AiX;
+        if (ns > 0) LPX -= CU * smooth_fixed;
+      }
+      arma::vec BPr = Bg.t() * Air;
+      if (ns > 0) BPr -= CU * smooth_response;
+      if (nf > 0) BPr -= LPX * fixed_response;
+      arma::mat BtPB = Bg.t() * AiB;
+      if (ns > 0) BtPB -= CU * Cinv * CU.t();
+      if (nf > 0) BtPB -= LPX * Hinv * LPX.t();
+      BtPB = arma::symmatu(BtPB);
+      arma::vec ug = G * BPr;
+      arma::mat posterior = arma::symmatu(G - G * BtPB * G);
+      u.row(g) = ug.t();
+      bpr.row(g) = BPr.t();
+      moment_thread[tid] += ug * ug.t() + posterior;
+      btpb_thread[tid] += BtPB;
+
+      arma::vec Pyr = Air;
+      if (ns > 0) Pyr -= AiU * smooth_response;
+      arma::mat VgX = AiX;
+      if (ns > 0 && nf > 0) VgX -= AiU * smooth_fixed;
+      if (nf > 0) Pyr -= VgX * fixed_response;
+      Py.elem(ii) = Pyr;
+
+      if (return_projection && ns > 0) {
+        arma::mat PUs = AiU * Cinv;
+        if (nf > 0) {
+          PUs -= VgX * Hinv * (UtAX.t() * Cinv);
+        }
+        PUs.each_row() %= parts.sqrt_positive.t();
+        PX.rows(ii) = PUs * parts.positive_vectors.t();
+      }
+    }
+  }
+  if (arma::any(ok == 0)) {
+    stop("A subject-level posterior precision was not positive definite.");
+  }
+  for (int t = 0; t < nt; ++t) {
+    moment_sum += moment_thread[t];
+    btpb_sum += btpb_thread[t];
+  }
+  const double rss_sum = std::max(
+    0.0, arma::dot(Py, Py) + static_cast<double>(n) - trace_P
+  );
+  return List::create(
+    _["beta"] = beta,
+    _["mean_covariance"] = arma::symmatu(mean_covariance),
+    _["u"] = u, _["bpr"] = bpr,
+    _["moment_sum"] = arma::symmatu(moment_sum),
+    _["btpb_sum"] = arma::symmatu(btpb_sum),
+    _["Py"] = Py, _["PX"] = PX,
+    _["trace_P"] = trace_P, _["rss_sum"] = rss_sum,
+    _["n_subject"] = ng, _["fixed_rank"] = nf,
+    _["smooth_rank"] = ns,
+    _["penalty_negative"] = parts.negative,
+    _["penalty_min_eigen"] = parts.minimum
+  );
+}
 
 // [[Rcpp::export]]
 List gammfast_variance_quadratic(const arma::vec& response,
@@ -100,25 +392,14 @@ List gammfast_variance_quadratic(const arma::vec& response,
   const int d = Lg.n_cols;
   const int q = ng * d;
 
-  arma::vec se;
-  arma::mat su;
-  if (!arma::eig_sym(se, su, arma::symmatu(penalty))) {
-    stop("The global penalty eigendecomposition failed.");
-  }
-  const double sscale = std::max(1.0, arma::abs(se).max());
-  arma::uvec spos = arma::find(se > eigen_tol * sscale);
-  arma::uvec szero = arma::find(se <= eigen_tol * sscale);
-  const int penalty_negative = arma::sum(se < -eigen_tol * sscale);
-  const double penalty_min = se.min();
-  const int ns = spos.n_elem;
-  const int nf = szero.n_elem;
-  arma::mat Us(n, ns, arma::fill::zeros);
-  if (ns > 0) {
-    Us = X * su.cols(spos);
-    Us.each_row() %= (1.0 / arma::sqrt(se.elem(spos))).t();
-  }
-  arma::mat Xf = X * su.cols(szero);
-  arma::vec beta_f = su.cols(szero).t() * beta;
+  PenaltyParts parts = decompose_penalty(X, penalty, eigen_tol);
+  const int penalty_negative = parts.negative;
+  const double penalty_min = parts.minimum;
+  const int ns = parts.Us.n_cols;
+  const int nf = parts.Xf.n_cols;
+  arma::mat Us = parts.Us;
+  arma::mat Xf = parts.Xf;
+  arma::vec beta_f = parts.zero_vectors.t() * beta;
   arma::vec residual = response - Xf * beta_f;
 
   arma::cube T(d, d, ng, arma::fill::zeros);

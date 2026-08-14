@@ -90,17 +90,7 @@ gammfast_variance_test <- function(fit,
     R_diag <- 1 / work$w
     working_model <- "final PIRLS working Gaussian"
   }
-  p <- ncol(X)
-  penalty <- matrix(0, p, p)
-  if (length(g$S)) {
-    if (length(g$S) != length(g$off) || length(g$S) != length(g$sp)) {
-      stop("The fitted global penalties and smoothing parameters are inconsistent.")
-    }
-    for (j in seq_along(g$S)) {
-      ii <- g$off[j] + seq_len(nrow(g$S[[j]])) - 1L
-      penalty[ii, ii] <- penalty[ii, ii] + g$sp[j] * g$S[[j]] / phi0
-    }
-  }
+  penalty <- gammfast_penalty_matrix(g, g$sp, scale = phi0)
 
   q <- nrow(fit$random.effects) * ncol(B)
   spectrum_used <- spectrum
@@ -225,7 +215,6 @@ gammfast_variance_test <- function(fit,
     fixed.effect.projected = TRUE,
     global.smooth.as.covariance = TRUE,
     vec.G.test = FALSE, score.test = FALSE,
-    cpql.corrected = FALSE,
     conditional = TRUE, null.refit = FALSE, post.estimation = TRUE,
     fitted.parameters.frozen = TRUE, gaussian.score = FALSE,
     full.random.design = FALSE

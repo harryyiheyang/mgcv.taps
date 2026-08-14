@@ -101,6 +101,44 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gammfast_laplace_variance_step
+List gammfast_laplace_variance_step(const arma::mat& X_penalized, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::mat& smooth_precision, const arma::vec& working_weight, const arma::vec& weight_derivative, const arma::mat& u, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_laplace_variance_step(SEXP X_penalizedSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP smooth_precisionSEXP, SEXP working_weightSEXP, SEXP weight_derivativeSEXP, SEXP uSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X_penalized(X_penalizedSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type smooth_precision(smooth_precisionSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type working_weight(working_weightSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weight_derivative(weight_derivativeSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type u(uSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_variance_step(X_penalized, B, id, G, smooth_precision, working_weight, weight_derivative, u, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_projected_moments
+List gammfast_projected_moments(const arma::vec& response, const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::mat& penalty, bool return_projection, double eigen_tol, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_projected_moments(SEXP responseSEXP, SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP penaltySEXP, SEXP return_projectionSEXP, SEXP eigen_tolSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type response(responseSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type penalty(penaltySEXP);
+    Rcpp::traits::input_parameter< bool >::type return_projection(return_projectionSEXP);
+    Rcpp::traits::input_parameter< double >::type eigen_tol(eigen_tolSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_projected_moments(response, X, B, id, G, penalty, return_projection, eigen_tol, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 // gammfast_variance_quadratic
 List gammfast_variance_quadratic(const arma::vec& response, const arma::mat& X, const arma::vec& beta, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::vec& R_diag, const arma::mat& penalty, const arma::mat& probes, bool exact, double eigen_tol, int n_threads);
 RcppExport SEXP _mgcv_taps_gammfast_variance_quadratic(SEXP responseSEXP, SEXP XSEXP, SEXP betaSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP R_diagSEXP, SEXP penaltySEXP, SEXP probesSEXP, SEXP exactSEXP, SEXP eigen_tolSEXP, SEXP n_threadsSEXP) {
@@ -179,6 +217,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_gammfast_gaussian_crossprod", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod, 5},
     {"_mgcv_taps_gammfast_gaussian_moments", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_moments, 6},
     {"_mgcv_taps_gammfast_vinv_apply", (DL_FUNC) &_mgcv_taps_gammfast_vinv_apply, 6},
+    {"_mgcv_taps_gammfast_laplace_variance_step", (DL_FUNC) &_mgcv_taps_gammfast_laplace_variance_step, 9},
+    {"_mgcv_taps_gammfast_projected_moments", (DL_FUNC) &_mgcv_taps_gammfast_projected_moments, 9},
     {"_mgcv_taps_gammfast_variance_quadratic", (DL_FUNC) &_mgcv_taps_gammfast_variance_quadratic, 12},
     {"_mgcv_taps_native_re_uid_profile_create_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_create_cpp, 7},
     {"_mgcv_taps_native_re_uid_profile_apply_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_apply_cpp, 3},
