@@ -66,20 +66,14 @@ A=cbind(1,x1,x2,x1*x2)
 return(A)
 }  # Default to using x itself
 para = 0
-A <- getA(x1,x2)
+A <- getA(x1,x2,para)
 } else {
 getA <- object$xt$getA
 para =  object$xt$para
 A <- getA(x1,x2,para)
 }
 
-# Check dimensions
-if (!is.matrix(A)) {
-  stop("'getA(x)' must return a matrix.")
-}
-if (nrow(A) != n) {
-  stop("The number of rows in matrix 'A' returned by getA(x) must match length of x.")
-}
+A <- taps_A_matrix(A, n)
 
 object$getA <- getA # store function for later use
 object$para = para

@@ -116,10 +116,9 @@ for (case in cases) {
   dat <- data.frame(y = case$y, x = x, id = id)
   fit <- gammfast(
     y ~ s(x, k = 5L) + s(id, bs = "re"),
-    data = dat, family = case$family, inner.max = 10L,
+    data = dat, family = case$family,
     control = list(
-      max.outer = 200L, objective.tol = 1e-5,
-      fixedpoint.tol = 1e-5
+      max.outer = 200L, objective.tol = 1e-5
     )
   )
   if (!isTRUE(fit$converged) || any(!is.finite(fit$G)) ||
@@ -129,7 +128,7 @@ for (case in cases) {
   }
   if (!identical(case$name, "gaussian-identity") &&
       fit$covariance.method !=
-        "mgcv-fREML-shared-UID-Laplace-fixedpoint") {
+        "cached-ordinary-X-Laplace-influence-fixedpoint") {
     stop(case$name, " did not use the Laplace fixed-point path.")
   }
   if (case$name %in% c("gamma-log", "inverse-gaussian-log")) {

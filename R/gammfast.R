@@ -19,13 +19,21 @@ utils::globalVariables(".gammfast_prior_weights")
 #'   Gaussian, quasi-likelihood, negative binomial, scaled t, beta regression,
 #'   and Tweedie. Standard links supported by mgcv are accepted.
 #' @param weights Optional prior weights.
-#' @param inner.max Maximum shared-UID covariance updates per mgcv P-IRLS outer
-#'   iteration, between 1 and 30.
+#' @param inner.max Optional safety limit for shared-UID covariance updates per
+#'   fixed PIRLS working model. The default is 300 iterations.
+#' @param inner.tol Relative covariance fixed-point tolerance.
+#' @param pirls.max Maximum PIRLS iterations for each fixed global
+#'   smoothing-parameter vector.
+#' @param pirls.tol Relative PIRLS deviance tolerance.
 #' @param nthreads Number of OpenMP threads used for subject-level operations.
 #' @param discrete Must be `FALSE`. The current solver does not implement the
 #'   mgcv/bam discrete model-matrix representation.
-#' @param control A list with `objective.tol`, `fixedpoint.tol`, and
-#'   `max.outer`. Local covariance updates stop early at `fixedpoint.tol`.
+#' @param control A list with `objective.tol` and `max.outer`. Outer iterations
+#'   stop on relative convergence of the branch-specific reported objective.
+#'   For non-Gaussian fits this is explicitly a blockwise working
+#'   fREML/Laplace criterion. Each covariance iteration stops at `inner.tol`
+#'   or reaches `inner.max`. The former `fixedpoint.tol` entry is accepted as
+#'   an alias for `inner.tol`.
 #' @param verbose Whether to print outer-iteration diagnostics.
 #'
 #' @return An object of class `"gammfast"` containing the global fit, the full
@@ -34,20 +42,25 @@ utils::globalVariables(".gammfast_prior_weights")
 #'
 #' @details `gammfast()` deliberately does not use mgcv's discrete fitting
 #'   path. mgcv constructs the global design and penalties (`fit = FALSE`) and
-#'   its fREML machinery estimates global smoothing parameters and dispersion.
+#'   its fREML machinery updates global smoothing parameters and dispersion.
 #'   `gammfast()` replaces only the working cross-products by their current
 #'   shared-UID marginal forms and estimates the subject covariance without
 #'   expanding an `n` by `n_subject * q` random-effect design. For models for
 #'   which the expected working-curvature derivative is available, the
-#'   covariance score includes the conditional, penalized-mean, and Laplace
-#'   conditional-mode corrections. Gamma and inverse-Gaussian models retain
-#'   mgcv Fisher weights for P-IRLS while using family-specific observed
-#'   curvature only in the Laplace determinant correction.
-#'   Global smooths remain mgcv mean coefficients with a `paraPen` precision;
-#'   their covariance coupling is evaluated by a low-dimensional Schur
-#'   complement. Extended-family nuisance parameters are updated by mgcv's
-#'   family-parameter optimizer. Formula offsets are retained in fitting and
-#'   prediction.
+#'   covariance update combines the conditional BLUP moment, the ordinary
+#'   full-`X` mean-estimation Schur correction, and the Laplace determinant
+#'   influence correction. It does not eigendecompose or reparameterize the
+#'   global mean penalty for covariance updates. Gamma and inverse-Gaussian
+#'   models retain mgcv Fisher weights for P-IRLS while using family-specific
+#'   observed curvature in the determinant leverage. Extended-family nuisance
+#'   parameters are updated by mgcv's family-parameter optimizer. Formula
+#'   offsets are retained in fitting and prediction. For non-Gaussian models,
+#'   each current global smoothing-parameter vector is held fixed while PIRLS
+#'   converges; within every PIRLS working model, `W` and `z` are held fixed
+#'   while the subject covariance converges. Only after that profile step does
+#'   the blockwise mgcv fREML smoothing update run. This is a blockwise profile
+#'   approximation, not Wood's exact nested-Newton LAML derivative with the
+#'   covariance response Schur-complemented from the outer Hessian.
 #'
 #' Each custom `fs(x, id, k)` covariate is affinely scaled over its fitted
 #' range to `[0, 1]`, reflecting the working assumption of approximately
@@ -71,8 +84,10 @@ utils::globalVariables(".gammfast_prior_weights")
 #'
 #' @export
 gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
-                     inner.max = 30L, nthreads = 1L,
-                     discrete = FALSE, control = list(), verbose = FALSE) {
+                     inner.max = 300L, nthreads = 1L,
+                     discrete = FALSE, control = list(), verbose = FALSE,
+                     inner.tol = 1e-5, pirls.max = 100L,
+                     pirls.tol = 1e-6) {
   if (!inherits(formula, "formula")) stop("formula must be a model formula.")
   if (!is.data.frame(data)) stop("data must be a data frame.")
   family_info <- gammfast_validate_family(family)
@@ -83,19 +98,43 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     stop("weights must be a finite non-negative numeric vector with one value per row.")
   }
   if (!any(weights > 0)) stop("At least one weight must be positive.")
+  if (!is.list(control)) stop("control must be a list.")
+  if (!is.null(control$fixedpoint.tol)) {
+    if (!missing(inner.tol)) {
+      stop("Specify inner.tol or control$fixedpoint.tol, not both.")
+    }
+    inner.tol <- control$fixedpoint.tol
+    control$fixedpoint.tol <- NULL
+  }
   weight_name <- ".gammfast_prior_weights"
   if (weight_name %in% names(data)) {
     stop("data contains the reserved column '.gammfast_prior_weights'.")
   }
   data[[weight_name]] <- weights
-  if (length(inner.max) != 1L || !is.finite(inner.max) ||
-      inner.max < 1 || inner.max > 30) {
-    stop("inner.max must be an integer from 1 to 30.")
+  if (!is.numeric(inner.max) || length(inner.max) != 1L ||
+      !is.finite(inner.max) || inner.max < 1 ||
+      inner.max != floor(inner.max)) {
+    stop("inner.max must be a positive finite integer.")
   }
-  if (length(nthreads) != 1L || !is.finite(nthreads) || nthreads < 1) {
+  if (!is.numeric(inner.tol) || length(inner.tol) != 1L ||
+      !is.finite(inner.tol) || inner.tol <= 0) {
+    stop("inner.tol must be one positive finite value.")
+  }
+  if (!is.numeric(pirls.max) || length(pirls.max) != 1L ||
+      !is.finite(pirls.max) || pirls.max < 1 ||
+      pirls.max != floor(pirls.max)) {
+    stop("pirls.max must be a positive integer.")
+  }
+  if (!is.numeric(pirls.tol) || length(pirls.tol) != 1L ||
+      !is.finite(pirls.tol) || pirls.tol <= 0) {
+    stop("pirls.tol must be one positive finite value.")
+  }
+  if (!is.numeric(nthreads) || length(nthreads) != 1L ||
+      !is.finite(nthreads) || nthreads < 1 || nthreads != floor(nthreads)) {
     stop("nthreads must be a positive integer.")
   }
   inner.max <- as.integer(inner.max)
+  pirls.max <- as.integer(pirls.max)
   nthreads <- as.integer(nthreads)
   if (length(discrete) != 1L || is.na(discrete) || !is.logical(discrete)) {
     stop("discrete must be a single TRUE or FALSE value.")
@@ -106,7 +145,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
 
   defaults <- list(
     objective.tol = 1e-7,
-    fixedpoint.tol = 1e-7,
     max.outer = 5000L
   )
   unknown <- setdiff(names(control), names(defaults))
@@ -117,9 +155,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
   control <- defaults
   if (!is.finite(control$objective.tol) || control$objective.tol <= 0) {
     stop("control$objective.tol must be positive.")
-  }
-  if (!is.finite(control$fixedpoint.tol) || control$fixedpoint.tol <= 0) {
-    stop("control$fixedpoint.tol must be positive.")
   }
   if (!is.finite(control$max.outer) || control$max.outer < 1) {
     stop("control$max.outer must be a positive integer.")
@@ -161,6 +196,10 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     parsed$groups, data, id_name, levels(id_factor)
   )
   B <- random_structure$B
+  covariance_group <- integer(ncol(B))
+  for (j in seq_along(random_structure$group.index)) {
+    covariance_group[random_structure$group.index[[j]]] <- j
+  }
   random_structure$id <- id_name
   random_structure$id.levels <- levels(id_factor)
   random_structure$id.index <- id
@@ -178,7 +217,9 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       shell = shell, G0 = G0, Sl = Sl, X = X, y = y,
       prior_weights = prior_weights, offset = offset, B = B, id = id,
       id_factor = id_factor, random_structure = random_structure,
-      inner.max = inner.max,
+      inner.max = inner.max, inner.tol = inner.tol,
+      pirls.max = pirls.max, pirls.tol = pirls.tol,
+      covariance_group = covariance_group,
       nthreads = nthreads, control = control, verbose = verbose,
       call = match.call()
     ))
@@ -235,32 +276,24 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     beta <- pp$beta
     rho_start <- pars$rho
     eta_global_work <- drop(X %*% beta)
-    sp_inner <- pars$sp
-    root_sigma <- sqrt(sigma2)
 
-    for (inner in seq_len(inner.max)) {
-      mm <- gammfast_projected_moments(
-        response = y_work / root_sigma,
-        X = X / root_sigma, B = B, id = id, G = G,
-        penalty = gammfast_penalty_matrix(G0, sp_inner, scale = sigma2),
-        n_threads = nthreads
+    inner <- 0L
+    fixedpoint_G <- Inf
+    repeat {
+      inner <- inner + 1L
+      mm <- gammfast_gaussian_projected_cached(
+        crossprod_cache$AtA, crossprod_cache$BtB,
+        crossprod_cache$BtA, G, sigma2, covariance_group,
+        fisher = FALSE
       )
-      G <- gammfast_project_covariance(
+      G_new <- gammfast_project_covariance(
         mm$moment_sum / ng, random_structure$group.index
       )
+      fixedpoint_G <- norm(G_new - G, "F") / (1 + norm(G, "F"))
+      G <- G_new
+      if (fixedpoint_G < inner.tol ||
+          gammfast_inner_limit(inner, inner.max)) break
     }
-    mm_check <- gammfast_projected_moments(
-      response = y_work / root_sigma,
-      X = X / root_sigma, B = B, id = id, G = G,
-      penalty = gammfast_penalty_matrix(G0, sp_inner, scale = sigma2),
-      n_threads = nthreads
-    )
-    G_check <- gammfast_project_covariance(
-      mm_check$moment_sum / ng, random_structure$group.index
-    )
-    beta <- mm_check$beta
-    eta_global_work <- drop(X %*% beta)
-    fixedpoint_G <- norm(G_check - G, "F") / (1 + norm(G, "F"))
     dphi <- if (is.null(sigma2_old)) Inf else abs(log(sigma2 / sigma2_old))
     sp_now <- pars$sp
     dsp <- if (is.null(sp_old)) Inf else max(abs(log(sp_now / sp_old)))
@@ -274,18 +307,16 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       outer = outer, objective = objective,
       dobjective = dobjective, fixedpoint_G = fixedpoint_G,
       dphi = dphi, dsp = dsp,
-      sig2 = sigma2
+      sig2 = sigma2, fixed_updates = inner
     ))
     if (verbose) {
       cat(
-        "outer", outer, "objective", format(objective, digits = 8),
-        "fixedpoint", format(fixedpoint_G, digits = 3),
-        "\n"
+        "outer", outer, "total REML", format(objective, digits = 8),
+        "relative change", format(dobjective, digits = 3),
+        "G updates", inner, "\n"
       )
     }
-    converged <- outer > 2L &&
-      dobjective < control$objective.tol &&
-      max(fixedpoint_G, dphi, dsp) < control$fixedpoint.tol
+    converged <- outer > 2L && dobjective < control$objective.tol
     sp_old <- sp_now
     sigma2_old <- sigma2
     objective_old <- objective
@@ -301,16 +332,9 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
   names(beta) <- names(shell$coefficients)
   eta_global_work <- drop(X %*% beta)
   eta_global <- offset + eta_global_work
-  root_sigma <- sqrt(sigma2)
-  mm <- gammfast_projected_moments(
-    response = y_work / root_sigma,
-    X = X / root_sigma, B = B, id = id, G = G,
-    penalty = gammfast_penalty_matrix(
-      G0, final$sp, scale = sigma2
-    ),
-    n_threads = nthreads
+  u <- sqrt(sigma2) * gammfast_gaussian_blup_cached(
+    crossprod_cache$BtB, crossprod_cache$BtA, G, beta, sigma2
   )
-  u <- sqrt(sigma2) * mm$u
   rownames(u) <- levels(id_factor)
   colnames(u) <- random_structure$column.names
   eta_random <- rowSums(B * u[id, , drop = FALSE])
@@ -351,7 +375,7 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     objective = final$fr$reml + 0.5 * final$logdet,
     converged = converged,
     outer = nrow(trace),
-    inner.max = inner.max,
+    inner.max = inner.max, inner.tol = inner.tol,
     elapsed = proc.time()[[3]] - start_time,
     trace = trace,
     formula = formula,
@@ -472,327 +496,6 @@ gammfast_validate_smooths <- function(G0) {
     }
   }
   invisible(NULL)
-}
-
-gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
-                                  X, y, prior_weights, offset, B, id,
-                                  id_factor, random_structure, inner.max,
-                                  nthreads, control, verbose, call) {
-  family <- shell$family
-  ng <- nlevels(id_factor)
-  eta <- as.numeric(shell$linear.predictors)
-  initial_work <- gammfast_working(
-    family, y, eta, prior_weights
-  )
-  initial_t <- gammfast_t_correction(
-    family, y, eta, prior_weights, initial_work$w
-  )
-  laplace_variance <- !is.null(initial_t)
-  laplace_penalty <- if (laplace_variance) {
-    gammfast_laplace_penalty_setup(G0)
-  } else {
-    NULL
-  }
-  X_penalized <- if (laplace_variance) {
-    X %*% laplace_penalty$penalized_vectors
-  } else {
-    NULL
-  }
-  eta_global <- eta
-  eta_random <- numeric(length(y))
-  initial_variance <- stats::var(eta)
-  if (!is.finite(initial_variance) || initial_variance <= 0) {
-    initial_variance <- 1
-  }
-  G <- gammfast_initial_covariance(
-    random_structure$group.index, initial_variance * 0.15
-  )
-  rho_start <- if (length(shell$sp) == length(G0$S)) {
-    pmin(log(shell$sp), 25)
-  } else {
-    NULL
-  }
-  sp_old <- NULL
-  sp_current <- NULL
-  objective_old <- NULL
-  trace <- data.frame()
-  converged <- FALSE
-  family_scale <- if (is.numeric(shell$sig2) && length(shell$sig2) == 1L) {
-    shell$sig2
-  } else {
-    1
-  }
-  scale_old <- NULL
-  estimate_working_phi <- gammfast_estimate_working_scale(family)
-  sp_boundary <- !is.null(rho_start) && any(rho_start >= 20)
-  variance_evaluations <- 0L
-  local_updates <- 0L
-  start_time <- proc.time()[[3]]
-
-  for (outer in seq_len(control$max.outer)) {
-    evaluations_start <- variance_evaluations
-    updates_start <- local_updates
-    work <- gammfast_working(
-      family, y, eta, prior_weights
-    )
-    t_correction <- gammfast_t_correction(
-      family, y, eta, prior_weights, work$w
-    )
-    step <- gammfast_general_step(
-      G0, Sl, X, work$z - offset, B, id, G,
-      sqrt(work$w), rho_start, nthreads,
-      optimize_sp = !sp_boundary,
-      sp_fixed = sp_current, phi = family_scale,
-      estimate_phi = estimate_working_phi
-    )
-    beta <- step$beta
-    rho_start <- pmin(step$rho, 25)
-    sp_current <- step$sp
-    family_scale <- step$phi
-    sp_boundary <- sp_boundary || isTRUE(step$sp_boundary) ||
-      any(log(step$sp) >= 25)
-    if (!is.null(step$fr$outer.info$conv) &&
-        grepl("divergence", step$fr$outer.info$conv, ignore.case = TRUE)) {
-      sp_boundary <- TRUE
-    }
-    sw <- sqrt(work$w)
-    root_scale <- sqrt(family_scale)
-    working_response <- sw * (work$z - offset) / root_scale
-    Xw <- X * sw / root_scale
-    Bw <- B * sw
-    penalty <- gammfast_penalty_matrix(
-      G0, step$sp, scale = family_scale
-    )
-
-    if (laplace_variance) {
-      smooth_precision <- crossprod(
-        laplace_penalty$penalized_vectors,
-        penalty %*% laplace_penalty$penalized_vectors
-      )
-      covariance_map <- function(G_now) {
-        variance_evaluations <<- variance_evaluations + 1L
-        mm_now <- gammfast_projected_moments(
-          response = working_response, X = Xw, B = Bw, id = id,
-          G = G_now, penalty = penalty, n_threads = nthreads
-        )
-        vcm_now <- gammfast_laplace_variance_step(
-          X_penalized = X_penalized, B = B, id = id, G = G_now,
-          smooth_precision = smooth_precision,
-          working_weight = work$w / family_scale,
-          determinant_weight = t_correction$weight / family_scale,
-          determinant_derivative = t_correction$derivative / family_scale,
-          u = root_scale * mm_now$u, n_threads = nthreads
-        )
-        moment_now <- vcm_now$moment_sum / (family_scale * ng)
-        list(
-          G = gammfast_project_covariance(
-            moment_now, random_structure$group.index
-          ),
-          moment = moment_now, mm = mm_now, vcm = vcm_now
-        )
-      }
-      for (inner in seq_len(inner.max)) {
-        mapped <- covariance_map(G)
-        local_change <- norm(mapped$G - G, "F") /
-          (1 + norm(G, "F"))
-        G <- mapped$G
-        beta_inner <- mapped$mm$beta
-        u_inner <- root_scale * mapped$mm$u
-        eta_inner <- offset + drop(X %*% beta_inner) +
-          rowSums(B * u_inner[id, , drop = FALSE])
-        local_updates <- local_updates + 1L
-        work <- gammfast_working(
-          family, y, eta_inner, prior_weights
-        )
-        t_correction <- gammfast_t_correction(
-          family, y, eta_inner, prior_weights, work$w
-        )
-        sw <- sqrt(work$w)
-        working_response <- sw * (work$z - offset) / root_scale
-        Xw <- X * sw / root_scale
-        Bw <- B * sw
-        if (local_change <= control$fixedpoint.tol) break
-      }
-    } else {
-      for (inner in seq_len(inner.max)) {
-        variance_evaluations <- variance_evaluations + 1L
-        mm <- gammfast_projected_moments(
-          response = working_response, X = Xw, B = Bw, id = id, G = G,
-          penalty = penalty, n_threads = nthreads
-        )
-        G <- gammfast_project_covariance(
-          mm$moment_sum / ng, random_structure$group.index
-        )
-      }
-    }
-
-    moment_check <- if (laplace_variance) {
-      check <- covariance_map(G)
-      mm <- check$mm
-      check$moment * ng
-    } else {
-      variance_evaluations <- variance_evaluations + 1L
-      mm <- gammfast_projected_moments(
-        response = working_response, X = Xw, B = Bw, id = id, G = G,
-        penalty = penalty, n_threads = nthreads
-      )
-      mm$moment_sum
-    }
-    G_check <- gammfast_project_covariance(
-      moment_check / ng, random_structure$group.index
-    )
-    fixedpoint_G <- norm(G_check - G, "F") / (1 + norm(G, "F"))
-    beta <- mm$beta
-    eta_global <- offset + drop(X %*% beta)
-    u <- root_scale * mm$u
-    eta_random <- rowSums(B * u[id, , drop = FALSE])
-    eta_new <- eta_global + eta_random
-    mu_new <- family$linkinv(eta_new)
-    theta_update <- gammfast_update_theta(
-      family, y, mu_new, prior_weights, family_scale
-    )
-    updated_scale <- theta_update$scale
-    if (!isTRUE(all.equal(updated_scale, family_scale))) {
-      G <- G * family_scale / updated_scale
-      family_scale <- updated_scale
-    }
-
-    sp_now <- step$sp
-    dsp <- if (is.null(sp_old)) Inf else max(abs(log(sp_now / sp_old)))
-    if (sp_boundary) dsp <- 0
-    dphi <- if (is.null(scale_old)) Inf else
-      abs(log(family_scale / scale_old))
-    eta_change <- max(abs(eta_new - eta)) / (1 + max(abs(eta)))
-    objective <- step$fr$reml + 0.5 * step$logdet
-    dobjective <- if (is.null(objective_old)) {
-      Inf
-    } else {
-      abs(objective - objective_old) / (1 + abs(objective_old))
-    }
-    trace <- rbind(trace, data.frame(
-      outer = outer, objective = objective, dobjective = dobjective,
-      fixedpoint_G = fixedpoint_G,
-      dphi = dphi, dsp = dsp, sig2 = family_scale,
-      eta_change = eta_change, theta_change = theta_update$change,
-      variance_evaluations = variance_evaluations - evaluations_start,
-      variance_evaluations_total = variance_evaluations,
-      local_updates = local_updates - updates_start,
-      local_updates_total = local_updates
-    ))
-    if (verbose) {
-      cat(
-        "outer", outer, "objective", format(objective, digits = 8),
-        "eta", format(eta_change, digits = 3),
-        "fixedpoint", format(fixedpoint_G, digits = 3), "\n"
-      )
-    }
-    converged <- outer > 2L &&
-      dobjective < control$objective.tol &&
-      max(fixedpoint_G, dphi, dsp, theta_update$change) <
-        control$fixedpoint.tol
-    eta <- eta_new
-    sp_old <- sp_now
-    scale_old <- family_scale
-    objective_old <- objective
-    if (converged) break
-  }
-
-  work <- gammfast_working(
-    family, y, eta, prior_weights
-  )
-  final <- gammfast_general_step(
-    G0, Sl, X, work$z - offset, B, id, G,
-    sqrt(work$w), rho_start, nthreads,
-    optimize_sp = FALSE, sp_fixed = sp_current,
-    phi = family_scale, estimate_phi = FALSE
-  )
-  sw <- sqrt(work$w)
-  root_scale <- sqrt(family_scale)
-  mm <- gammfast_projected_moments(
-    response = sw * (work$z - offset) / root_scale,
-    X = X * sw / root_scale, B = B * sw,
-    id = id, G = G,
-    penalty = gammfast_penalty_matrix(
-      G0, final$sp, scale = family_scale
-    ),
-    n_threads = nthreads
-  )
-  beta <- mm$beta
-  names(beta) <- names(shell$coefficients)
-  eta_global <- offset + drop(X %*% beta)
-  u <- root_scale * mm$u
-  rownames(u) <- levels(id_factor)
-  colnames(u) <- random_structure$column.names
-  eta_random <- rowSums(B * u[id, , drop = FALSE])
-  eta <- eta_global + eta_random
-  mu <- family$linkinv(eta)
-  work_final <- gammfast_working(
-    family, y, eta, prior_weights
-  )
-
-  shell$coefficients <- beta
-  shell$sp <- final$sp
-  shell$sig2 <- family_scale
-  shell$scale <- family_scale
-  shell$weights <- work_final$w
-  shell$linear.predictors <- eta_global
-  shell$fitted.values <- family$linkinv(eta_global)
-  shell$family <- family
-  shell$Vp <- final$pp$Vp
-  shell$Ve <- final$pp$Ve
-
-  G_actual <- family_scale * G
-  random_structure$covariance <- lapply(
-    random_structure$group.index,
-    function(jj) G_actual[jj, jj, drop = FALSE]
-  )
-
-  fit <- list(
-    coefficients = beta,
-    Vp = final$pp$Vp,
-    Ve = final$pp$Ve,
-    random.effects = u, G = G_actual,
-    dispersion.method = if (estimate_working_phi) {
-      "mgcv-fREML"
-    } else if (inherits(family, "extended.family") &&
-               is.numeric(family$scale) && length(family$scale) == 1L &&
-               family$scale < 0) {
-      "mgcv-estimate.theta"
-    } else {
-      "family-fixed"
-    },
-    family.parameter.method = if (inherits(family, "extended.family") &&
-                                  !is.null(family$n.theta) &&
-                                  family$n.theta > 0L) {
-      "mgcv-estimate.theta"
-    } else {
-      "family-fixed"
-    },
-    covariance.method = if (laplace_variance) {
-      "mgcv-fREML-shared-UID-Laplace-fixedpoint"
-    } else {
-      "mean-Hessian-projected-moment"
-    },
-    sp = final$sp, fitted.values = mu,
-    linear.predictors = eta, global.fitted = eta_global,
-    random.fitted = eta_random, residuals = y - mu,
-    y = y, weights = work_final$w, prior.weights = prior_weights,
-    offset = offset, sig2 = family_scale,
-    objective = final$fr$reml + 0.5 * final$logdet,
-    converged = converged, outer = nrow(trace), inner.max = inner.max,
-    variance.evaluations = variance_evaluations,
-    local.updates = local_updates,
-    elapsed = proc.time()[[3]] - start_time, trace = trace,
-    formula = formula, global.formula = global_formula, global = shell,
-    family = family,
-    random = random_structure,
-    call = call, control = control
-  )
-  class(fit) <- "gammfast"
-  if (!converged) {
-    warning("gammfast reached control$max.outer before convergence.")
-  }
-  fit
 }
 
 gammfast_working <- function(family, y, eta, prior_weights) {
@@ -1067,6 +770,7 @@ gammfast_parse_formula <- function(formula, data) {
 
   for (i in seq_along(labels)) {
     term_call <- str2lang(labels[i])
+    if (!is.call(term_call)) next
     call_name <- as.character(term_call[[1L]])
     args <- as.list(term_call)[-1L]
     arg_names <- names(args)
@@ -1098,14 +802,15 @@ gammfast_parse_formula <- function(formula, data) {
              paste(missing_variables, collapse = ", "), ".")
       }
       factor_variables <- variables[vapply(
-        data[variables], is.factor, logical(1)
+        variables, function(variable) is.factor(data[[variable]]), logical(1)
       )]
       if (length(factor_variables) != 1L) {
         stop("Each s(..., bs = 're') must contain exactly one factor ID variable.")
       }
       numeric_variables <- setdiff(variables, factor_variables)
       if (length(numeric_variables) &&
-          any(!vapply(data[numeric_variables], function(x) {
+          any(!vapply(numeric_variables, function(variable) {
+            x <- data[[variable]]
             is.numeric(x) || is.logical(x)
           }, logical(1)))) {
         stop("Random-slope covariates must be scalar numeric variables.")

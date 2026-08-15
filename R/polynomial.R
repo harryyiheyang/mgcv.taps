@@ -4,7 +4,7 @@
 #' The resulting matrix includes columns for each power of `x` from 0 (intercept) to the specified polynomial order.
 #'
 #' @param x A numeric vector representing the covariate values at which to evaluate the polynomial basis.
-#' @param order A non-negative integer specifying the highest polynomial order to include in the basis matrix.
+#' @param para A non-negative integer specifying the highest polynomial order to include in the basis matrix.
 #'
 #' @return A numeric matrix with `length(x)` rows and `order + 1` columns.
 #'         The first column corresponds to the intercept (constant term, `x^0 = 1`),

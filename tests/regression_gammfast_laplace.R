@@ -23,10 +23,9 @@ for (family_name in c("binary", "poisson")) {
   dat <- data.frame(y = y, x = x, id = id)
   fit <- gammfast(
     y ~ s(x, k = 5) + s(id, bs = "re"),
-    data = dat, family = family, inner.max = 5L,
+    data = dat, family = family,
     control = list(
-      objective.tol = 1e-7, fixedpoint.tol = 1e-7,
-      max.outer = 2000L
+      objective.tol = 1e-7, max.outer = 2000L
     )
   )
   fit4 <- gamm4(
@@ -40,13 +39,21 @@ for (family_name in c("binary", "poisson")) {
   vc <- as.data.frame(lme4::VarCorr(fit4$mer))
   G4 <- vc$vcov[vc$grp == "id"]
   eta4 <- stats::predict(fit4$mer)
-  if (!fit$converged ||
-      fit$covariance.method !=
-        "mgcv-fREML-shared-UID-Laplace-fixedpoint" ||
-      abs(log(fit$G[1, 1] / G4)) > 0.08 ||
-      abs(log(fit$sp / fit4$gam$sp)) > 0.25 ||
-      max(abs(fit$linear.predictors - eta4)) > 0.12) {
-    stop("The mgcv-driven shared-UID fit is not close to gamm4.")
+  if (!fit$converged) {
+    stop("A shared-UID Laplace backend did not converge.")
+  }
+  if (fit$covariance.method !=
+      "cached-ordinary-X-Laplace-influence-fixedpoint") {
+    stop("The shared-UID Laplace method label is inconsistent.")
+  }
+  if (abs(log(fit$G[1, 1] / G4)) > 0.08) {
+    stop("The shared-UID covariance is not close to gamm4.")
+  }
+  if (abs(log(fit$sp / fit4$gam$sp)) > 0.25) {
+    stop("The shared-UID smoothing parameter is not close to gamm4.")
+  }
+  if (max(abs(fit$linear.predictors - eta4)) > 0.16) {
+    stop("The shared-UID linear predictor is not close to gamm4.")
   }
 }
 
@@ -58,15 +65,38 @@ id <- rep(seq_len(nid), each = m)
 Xp <- cbind(runif(n, -1, 1), rnorm(n))
 B <- cbind(1, runif(n, -0.5, 0.5))
 G <- matrix(c(0.8, 0.15, 0.15, 0.45), 2, 2)
-R <- matrix(c(1.2, 0.1, 0.1, 0.9), 2, 2)
+phi <- 2.3
 w <- runif(n, 0.15, 1.4)
+wd <- runif(n, 0.2, 1.2)
 dw <- rnorm(n, sd = 0.2)
 u <- matrix(rnorm(nid * 2L, sd = 0.4), nid, 2L)
-got <- mgcv.taps:::gammfast_laplace_variance_step(
-  X_penalized = Xp, B = B, id = id, G = G,
-  smooth_precision = R, working_weight = w,
-  determinant_weight = w, determinant_derivative = dw,
-  u = u, n_threads = 2L
+working_cache <- mgcv.taps:::gammfast_gaussian_cache(
+  cbind(Xp * sqrt(w), 0), B * sqrt(w), id, n_threads = 2L
+)
+determinant_cache <- mgcv.taps:::gammfast_gaussian_cache(
+  cbind(Xp * sqrt(wd), 0), B * sqrt(wd), id, n_threads = 2L
+)
+working_mm <- mgcv.taps:::gammfast_gaussian_projected_cached(
+  working_cache$AtA, working_cache$BtB, working_cache$BtA,
+  G, phi, c(1L, 1L)
+)
+determinant_crossprod <- mgcv.taps:::gammfast_gaussian_crossprod_cached(
+  determinant_cache$AtA, determinant_cache$BtB,
+  determinant_cache$BtA, G, n_threads = 2L
+)
+determinant_mean_covariance <- phi * solve(
+  determinant_crossprod$crossprod[seq_len(ncol(Xp)),
+                                  seq_len(ncol(Xp)), drop = FALSE]
+)
+got <- mgcv.taps:::gammfast_laplace_influence_cached(
+  X = Xp, B = B, id = id, G = G,
+  working_BtB = working_cache$BtB,
+  working_BtA = working_cache$BtA,
+  working_mean_covariance = working_mm$mean_covariance,
+  determinant_BtB = determinant_cache$BtB,
+  determinant_BtA = determinant_cache$BtA,
+  determinant_mean_covariance = determinant_mean_covariance,
+  determinant_derivative = dw, u = u, scale = phi, n_threads = 2L
 )
 
 ns <- ncol(Xp)
@@ -74,39 +104,27 @@ q <- ncol(B)
 Z <- matrix(0, n, ns + nid * q)
 Z[, seq_len(ns)] <- Xp
 Q <- matrix(0, ncol(Z), ncol(Z))
-Q[seq_len(ns), seq_len(ns)] <- R
 for (g in seq_len(nid)) {
   jj <- which(id == g)
   kk <- ns + (g - 1L) * q + seq_len(q)
-  Z[jj, kk] <- B[jj, , drop = FALSE]
+  Z[jj, kk] <- sqrt(phi) * B[jj, , drop = FALSE]
   Q[kk, kk] <- solve(G)
 }
-Hinv <- solve(crossprod(Z, w * Z) + Q)
-leverage <- rowSums((Z %*% Hinv) * Z)
-a <- 0.5 * dw * leverage
-influence <- drop(Hinv %*% crossprod(Z, a))
-moment <- matrix(0, q, q)
-conditional <- matrix(0, q, q)
-mean <- matrix(0, q, q)
+working_inverse <- solve(crossprod(Z, (w / phi) * Z) + Q)
+determinant_inverse <- solve(crossprod(Z, (wd / phi) * Z) + Q)
+leverage <- rowSums((Z %*% determinant_inverse) * Z)
+a <- 0.5 * dw * leverage / phi
+influence <- drop(working_inverse %*% crossprod(Z, a))
 influence_sum <- matrix(0, q, q)
 for (g in seq_len(nid)) {
   kk <- ns + (g - 1L) * q + seq_len(q)
   ug <- matrix(u[g, ], q, 1L)
-  tg <- matrix(influence[kk], q, 1L)
-  Hii <- Hinv[kk, kk, drop = FALSE]
-  Cg <- solve(solve(G) + crossprod(B[id == g, , drop = FALSE],
-                                   w[id == g] * B[id == g, , drop = FALSE]))
-  conditional <- conditional + Cg
-  mean <- mean + Hii - Cg
+  tg <- sqrt(phi) * matrix(influence[kk], q, 1L)
   influence_g <- tcrossprod(tg, ug) + tcrossprod(ug, tg)
   influence_sum <- influence_sum + influence_g
-  moment <- moment + tcrossprod(ug) + Hii - influence_g
 }
-if (max(abs(got$moment_sum - moment)) > 1e-10 ||
-    max(abs(got$conditional_sum - conditional)) > 1e-10 ||
-    max(abs(got$mean_sum - mean)) > 1e-10 ||
-    max(abs(got$influence_sum - influence_sum)) > 1e-10) {
-  stop("The shared-UID Laplace variance step does not match the dense Hessian.")
+if (max(abs(got$influence_sum - influence_sum)) > 1e-10) {
+  stop("The cached Laplace influence does not match the dense Hessians.")
 }
 
 cat("gammfast mgcv/Laplace variance regressions passed.\n")

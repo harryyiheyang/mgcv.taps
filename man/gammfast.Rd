@@ -9,11 +9,14 @@ gammfast(
   data,
   family = stats::gaussian(),
   weights = NULL,
-  inner.max = 30L,
+  inner.max = 300L,
   nthreads = 1L,
   discrete = FALSE,
   control = list(),
-  verbose = FALSE
+  verbose = FALSE,
+  inner.tol = 1e-05,
+  pirls.max = 100L,
+  pirls.tol = 1e-06
 )
 }
 \arguments{
@@ -31,17 +34,27 @@ and Tweedie. Standard links supported by mgcv are accepted.}
 
 \item{weights}{Optional prior weights.}
 
-\item{inner.max}{Maximum shared-UID covariance updates per mgcv P-IRLS outer
-iteration, between 1 and 30.}
+\item{inner.max}{Optional safety limit for shared-UID covariance updates per
+fixed PIRLS working model. The default is 300 iterations.}
+
+\item{inner.tol}{Relative covariance fixed-point tolerance.}
+
+\item{pirls.max}{Maximum PIRLS iterations for each fixed global
+smoothing-parameter vector.}
+
+\item{pirls.tol}{Relative PIRLS deviance tolerance.}
 
 \item{nthreads}{Number of OpenMP threads used for subject-level operations.}
 
 \item{discrete}{Must be `FALSE`. The current solver does not implement the
 mgcv/bam discrete model-matrix representation.}
 
-\item{control}{A list with \code{objective.tol}, \code{fixedpoint.tol}, and
-\code{max.outer}. Local covariance updates stop early at
-\code{fixedpoint.tol}.}
+\item{control}{A list with `objective.tol` and `max.outer`. Outer iterations
+stop on relative convergence of the branch-specific reported objective.
+For non-Gaussian fits this is explicitly a blockwise working
+fREML/Laplace criterion. Each covariance iteration stops at `inner.tol`
+or reaches `inner.max`. The former `fixedpoint.tol` entry is accepted as
+an alias for `inner.tol`.}
 
 \item{verbose}{Whether to print outer-iteration diagnostics.}
 }
@@ -61,20 +74,25 @@ smooth terms use the `mgcv` fREML machinery.
 \details{
 `gammfast()` deliberately does not use mgcv's discrete fitting
   path. mgcv constructs the global design and penalties (`fit = FALSE`) and
-  its fREML machinery estimates global smoothing parameters and dispersion.
+  its fREML machinery updates global smoothing parameters and dispersion.
   `gammfast()` replaces only the working cross-products by their current
   shared-UID marginal forms and estimates the subject covariance without
   expanding an `n` by `n_subject * q` random-effect design. For models for
-  which the expected working-curvature derivative is available, the covariance
-  score includes the conditional, penalized-mean, and Laplace conditional-mode
-  corrections. Gamma and inverse-Gaussian models retain mgcv Fisher weights for
-  P-IRLS while using family-specific observed curvature only in the Laplace
-  determinant correction.
-  Global smooths remain mgcv mean coefficients with a `paraPen` precision;
-  their covariance coupling is evaluated by a low-dimensional Schur
-  complement. Extended-family nuisance parameters are updated by mgcv's
-  family-parameter optimizer. Formula offsets are retained in fitting and
-  prediction.
+  which the expected working-curvature derivative is available, the
+  covariance update combines the conditional BLUP moment, the ordinary
+  full-`X` mean-estimation Schur correction, and the Laplace determinant
+  influence correction. It does not eigendecompose or reparameterize the
+  global mean penalty for covariance updates. Gamma and inverse-Gaussian
+  models retain mgcv Fisher weights for P-IRLS while using family-specific
+  observed curvature in the determinant leverage. Extended-family nuisance
+  parameters are updated by mgcv's family-parameter optimizer. Formula
+  offsets are retained in fitting and prediction. For non-Gaussian models,
+  each current global smoothing-parameter vector is held fixed while PIRLS
+  converges; within every PIRLS working model, `W` and `z` are held fixed
+  while the subject covariance converges. Only after that profile step does
+  the blockwise mgcv fREML smoothing update run. This is a blockwise profile
+  approximation, not Wood's exact nested-Newton LAML derivative with the
+  covariance response Schur-complemented from the outer Hessian.
 
 Each custom `fs(x, id, k)` covariate is affinely scaled over its fitted
 range to `[0, 1]`, reflecting the working assumption of approximately

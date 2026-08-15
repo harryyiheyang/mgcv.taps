@@ -52,8 +52,7 @@ for (j in seq_along(solvers)) {
       data = dat, family = family, inner.max = inner_max,
       nthreads = 1L,
       control = list(
-        objective.tol = fit_tolerance, fixedpoint.tol = fit_tolerance,
-        max.outer = max_outer
+        objective.tol = fit_tolerance, max.outer = max_outer
       )
     )
   )

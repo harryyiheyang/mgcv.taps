@@ -9,6 +9,14 @@ gammfast_gaussian_cache <- function(A, B, id, n_threads = 1L) {
     .Call(`_mgcv_taps_gammfast_gaussian_cache`, A, B, id, n_threads)
 }
 
+gammfast_gaussian_blup_cached <- function(BtB, BtA, G, beta, sigma2) {
+    .Call(`_mgcv_taps_gammfast_gaussian_blup_cached`, BtB, BtA, G, beta, sigma2)
+}
+
+gammfast_gaussian_projected_cached <- function(AtA, BtB, BtA, G, sigma2, covariance_group, fisher = FALSE) {
+    .Call(`_mgcv_taps_gammfast_gaussian_projected_cached`, AtA, BtB, BtA, G, sigma2, covariance_group, fisher)
+}
+
 gammfast_gaussian_crossprod_cached <- function(AtA, BtB, BtA, H, n_threads = 1L) {
     .Call(`_mgcv_taps_gammfast_gaussian_crossprod_cached`, AtA, BtB, BtA, H, n_threads)
 }
@@ -25,12 +33,8 @@ gammfast_vinv_apply <- function(A, B, id, G, R_diag, n_threads = 1L) {
     .Call(`_mgcv_taps_gammfast_vinv_apply`, A, B, id, G, R_diag, n_threads)
 }
 
-gammfast_laplace_variance_step <- function(X_penalized, B, id, G, smooth_precision, working_weight, determinant_weight, determinant_derivative, u, n_threads = 1L) {
-    .Call(`_mgcv_taps_gammfast_laplace_variance_step`, X_penalized, B, id, G, smooth_precision, working_weight, determinant_weight, determinant_derivative, u, n_threads)
-}
-
-gammfast_projected_moments <- function(response, X, B, id, G, penalty, return_projection = FALSE, eigen_tol = 1e-10, n_threads = 1L) {
-    .Call(`_mgcv_taps_gammfast_projected_moments`, response, X, B, id, G, penalty, return_projection, eigen_tol, n_threads)
+gammfast_laplace_influence_cached <- function(X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale = 1.0, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_laplace_influence_cached`, X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale, n_threads)
 }
 
 gammfast_variance_quadratic <- function(response, X, beta, B, id, G, R_diag, penalty, probes, exact, eigen_tol = 1e-8, n_threads = 1L) {

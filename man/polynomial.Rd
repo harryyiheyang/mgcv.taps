@@ -9,7 +9,7 @@ polynomial(x, para)
 \arguments{
 \item{x}{A numeric vector representing the covariate values at which to evaluate the polynomial basis.}
 
-\item{order}{A non-negative integer specifying the highest polynomial order to include in the basis matrix.}
+\item{para}{A non-negative integer specifying the highest polynomial order to include in the basis matrix.}
 }
 \value{
 A numeric matrix with `length(x)` rows and `order + 1` columns.

@@ -10,12 +10,13 @@
 #' approximation. P-values can be computed by several methods for quadratic
 #' forms in normal variables.
 #'
-#' The historical score-test name is retained for compatibility. The fitted
-#' coefficients, smoothing parameters, and dispersion are frozen, and no null
-#' model is refitted. Hence
-#' this is a conditional post-estimation evaluation rather than a Rao score
-#' test. Calibration uses the weighted quadratic-form spectrum; it is not a
-#' Gaussian `U / sqrt(I)` test.
+#' The historical score-test name is retained for compatibility. With
+#' \code{refit = FALSE}, the fitted coefficients, smoothing parameters, and
+#' dispersion are frozen, so the result is a conditional post-estimation
+#' evaluation rather than a Rao score test. With \code{refit = TRUE}, the tested
+#' AMatern or A2Matern penalized component is removed and the null model is
+#' refitted from the current fit. Calibration uses the weighted quadratic-form
+#' spectrum; it is not a Gaussian `U / sqrt(I)` test.
 #'
 #' @param fit A fitted \code{gam} or \code{bam} model object from \pkg{mgcv}.
 #'   Use [taps_score_test_gamm()] for \code{gamm4} or \code{gammfast} fits, or
@@ -34,6 +35,15 @@
 #'   Default is \code{1e-12}.
 #' @param n_threads Integer. Number of threads used by supported pseudo-response
 #'   and structured random-effect calculations. Default is \code{1}.
+#' @param refit Logical. If \code{TRUE}, refit the null mean model by replacing
+#'   the tested AMatern or A2Matern smooth with its \code{getA} covariates.
+#'   Default is \code{FALSE}.
+#' @param sp.refit Logical. If \code{TRUE}, re-estimate nuisance smoothing
+#'   parameters by REML for \code{gam} or fREML for \code{bam} during a null
+#'   refit. If \code{FALSE}, retain their fitted values. Default is \code{TRUE}.
+#'   Discrete \code{bam} refits use mgcv's default starting values because
+#'   fitted coefficient or smoothing-parameter starts can change fREML
+#'   convergence.
 #'
 #' @return A \code{data.table} with three columns:
 #'   \describe{
@@ -60,7 +70,8 @@
 #' @export
 taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
                             method = "davies", max_eps = 1e-8, max_iter = 1e5,
-                            eps_mu = 1e-12, n_threads = 1) {
+                            eps_mu = 1e-12, n_threads = 1,
+                            refit = FALSE, sp.refit = TRUE) {
   if (inherits(fit, "gammfast")) {
     stop("taps_score_test does not accept gammfast fits; use taps_score_test_gamm().")
   }
@@ -68,6 +79,14 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
     stop("taps_score_test does not accept gamm4 fits; use taps_score_test_gamm().")
   }
   if (!inherits(fit, "gam")) stop("fit must be a 'gam' or 'bam' object.")
+  if (length(refit) != 1L || is.na(refit) || !is.logical(refit)) {
+    stop("refit must be a single TRUE or FALSE value.")
+  }
+  if (length(sp.refit) != 1L || is.na(sp.refit) || !is.logical(sp.refit)) {
+    stop("sp.refit must be a single TRUE or FALSE value.")
+  }
+
+  if (refit) fit <- taps_score_refit(fit, test.component, sp.refit, null.tol)
 
   if (identical(fit$family$family, "Cox PH")) {
     return(taps_score_test_cox(
@@ -101,7 +120,8 @@ taps_score_test <- function(fit, test.component = 1, null.tol = 1e-10,
   pseudo_response <- pseudo_response - model_offset
 
   beta         <- fit$coefficients
-  X            <- predict(fit, newdata = fit$model, type = "lpmatrix")
+  X            <- fit$.taps_score_X
+  if (is.null(X)) X <- predict(fit, newdata = fit$model, type = "lpmatrix")
   smooth_terms <- fit$smooth
   p            <- length(smooth_terms)
 

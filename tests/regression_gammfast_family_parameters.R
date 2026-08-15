@@ -14,17 +14,15 @@ dat <- data.frame(y = y, x = x, id = id)
 fit.qp <- gammfast(
   y ~ s(x, k = 5L) + s(id, bs = "re"),
   data = dat, family = stats::quasipoisson(),
-  inner.max = 10L,
   control = list(
-    max.outer = 1000L, objective.tol = 1e-5,
-    fixedpoint.tol = 1e-5
+    max.outer = 1000L, objective.tol = 1e-5
   )
 )
 if (!isTRUE(fit.qp$converged) || !is.finite(fit.qp$sig2) ||
     fit.qp$sig2 <= 1 ||
     fit.qp$dispersion.method != "mgcv-fREML" ||
     fit.qp$covariance.method !=
-      "mgcv-fREML-shared-UID-Laplace-fixedpoint") {
+      "cached-ordinary-X-Laplace-influence-fixedpoint") {
   stop("Quasi-Poisson scale handling is inconsistent.")
 }
 if (!is.null(fit.qp$sigma2) || !is.null(fit.qp$G.normalized) ||
@@ -44,27 +42,31 @@ sw.qp <- sqrt(work.qp$w)
 X.qp <- predict(
   fit.qp$global, newdata = fit.qp$global$model, type = "lpmatrix"
 )
-mm.qp <- mgcv.taps:::gammfast_projected_moments(
-  response = sw.qp * (work.qp$z - fit.qp$offset) / sqrt(fit.qp$sig2),
-  X = X.qp * sw.qp / sqrt(fit.qp$sig2),
-  B = random.qp$B * sw.qp, id = random.qp$id.index,
-  G = fit.qp$G / fit.qp$sig2,
-  penalty = mgcv.taps:::gammfast_penalty_matrix(
-    fit.qp$global, fit.qp$sp, scale = fit.qp$sig2
-  )
+cache.qp <- mgcv.taps:::gammfast_gaussian_cache(
+  cbind(
+    X.qp * sw.qp,
+    (work.qp$z - fit.qp$offset) * sw.qp
+  ),
+  random.qp$B * sw.qp, random.qp$id.index
 )
-if (max(abs(fit.qp$random.effects - sqrt(fit.qp$sig2) * mm.qp$u)) >
-    1e-7) {
-  stop("Quasi-Poisson random effects are not on the actual dispersion scale.")
+u.qp <- mgcv.taps:::gammfast_gaussian_blup_cached(
+  cache.qp$BtB, cache.qp$BtA, fit.qp$G / fit.qp$sig2,
+  fit.qp$coefficients, fit.qp$sig2
+)
+u.diff <- max(abs(fit.qp$random.effects - sqrt(fit.qp$sig2) * u.qp))
+if (u.diff > 1e-7) {
+  stop(
+    "Quasi-Poisson random effects are not on the actual dispersion scale: ",
+    format(u.diff, digits = 8), "."
+  )
 }
 
 family.nb <- mgcv::nb(theta = -1, link = "log")
 fit.nb <- gammfast(
   y ~ s(x, k = 5L) + s(id, bs = "re"),
-  data = dat, family = family.nb, inner.max = 10L,
+  data = dat, family = family.nb,
   control = list(
-    max.outer = 1000L, objective.tol = 1e-5,
-    fixedpoint.tol = 1e-5
+    max.outer = 1000L, objective.tol = 1e-5
   )
 )
 theta.nb <- fit.nb$family$getTheta(TRUE)

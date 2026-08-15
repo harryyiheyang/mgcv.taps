@@ -6,7 +6,9 @@
 ^temp$
 ^tmp$
 ^\.\.Rcheck$
+^[^/]+\.Rcheck$
 ^src/.*\.(o|dll)$
+^src/symbols\.rds$
 ^research$
 ^example$
 ^REVISION_GUIDE\.md$

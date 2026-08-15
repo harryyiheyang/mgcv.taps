@@ -68,30 +68,6 @@ res <- testStat(p, Xt, V, rank = rank, type = 0, res.df = rdf)
 c(statistic = res$stat, df = res$rank, p.value = res$pval)
 }
 
-low_rank_test <- function(beta,X, V) {
-qrx <- qr(X, tol = 0)
-R <- qr.R(qrx)
-V <- R %*% V[qrx$pivot, qrx$pivot, drop = FALSE] %*% t(R)
-V <- (V + t(V))/2
-beta = as.vector(R%*%beta[qrx$pivot])
-# Compute observed test statistic
-Q_obs <- sum(beta^2)
-
-# Compute trace-based approximations
-tr_V <- sum(diag(V))           # Trace of V
-tr_V2 <- sum(diag(V%*%V))            # Trace of V %*% V
-
-# Expected value of Q
-expected_Q <- tr_V
-
-# Variance of Q
-var_Q <- 2 * tr_V2
-
-# Chi-square approximation
-p_value <- pchisq(Q_obs / expected_Q, df = 1, lower.tail = FALSE)/2
-return(list(statistic = Q_obs / expected_Q, df=1,p.value = p_value, method = "Appro. χ²"))
-}
-
 fit_beta_transform <- function(x, k = round(length(x)/4)) {
 # 1. Data preprocessing: Remove NA values and ensure x is a non-empty numeric vector
 x <- na.omit(x)
@@ -129,23 +105,6 @@ ecdf_x <- ecdf(x)(new_x)
 # Map to the quantiles of the fitted Beta distribution
 qbeta(ecdf_x, shape1 = alpha, shape2 = beta)
 }
-}
-
-is_canonical_link <- function(fit) {
-if (!inherits(fit, "gam")) stop("fit must be a 'gam' object.")
-
-used_link <- fit$family$link
-
-family_name <- fit$family$family
-canonical_link <- switch(family_name,
-                         "gaussian" = "identity",
-                         "poisson" = "log",
-                         "binomial" = "logit",
-                         "Gamma" = "inverse",
-                         "inverse.gaussian" = "1/mu^2",
-                         stop("Unknown family"))
-
-return(used_link == canonical_link)
 }
 
 #' @importFrom CppMatrix matrixInverse matrixMultiply matrixVectorMultiply matrixEigen

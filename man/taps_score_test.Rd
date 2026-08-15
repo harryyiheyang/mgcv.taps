@@ -12,7 +12,9 @@ taps_score_test(
   max_eps = 1e-08,
   max_iter = 1e+05,
   eps_mu = 1e-12,
-  n_threads = 1
+  n_threads = 1,
+  refit = FALSE,
+  sp.refit = TRUE
 )
 }
 \arguments{
@@ -40,6 +42,16 @@ Default is \code{1e-12}.}
 
 \item{n_threads}{Integer. Number of threads used by supported pseudo-response
 and structured random-effect calculations. Default is \code{1}.}
+
+\item{refit}{Logical. If \code{TRUE}, refit the null mean model by replacing
+the tested AMatern or A2Matern smooth with its \code{getA} covariates.
+Default is \code{FALSE}.}
+
+\item{sp.refit}{Logical. If \code{TRUE}, re-estimate nuisance smoothing
+parameters by REML for \code{gam} or fREML for \code{bam} during a null
+refit. If \code{FALSE}, retain their fitted values. Default is \code{TRUE}.
+Discrete \code{bam} refits use mgcv's default starting values because fitted
+coefficient or smoothing-parameter starts can change fREML convergence.}
 }
 \value{
 A \code{data.table} with three columns:
@@ -61,12 +73,13 @@ approximation. P-values can be computed by several methods for quadratic
 forms in normal variables.
 }
 \details{
-The historical score-test name is retained for compatibility. The fitted
-coefficients, smoothing parameters, and dispersion are frozen, and no null
-model is refitted. Hence
-this is a conditional post-estimation evaluation rather than a Rao score
-test. Calibration uses the weighted quadratic-form spectrum; it is not a
-Gaussian `U / sqrt(I)` test.
+The historical score-test name is retained for compatibility. With
+\code{refit = FALSE}, the fitted coefficients, smoothing parameters, and
+dispersion are frozen, so the result is a conditional post-estimation
+evaluation rather than a Rao score test. With \code{refit = TRUE}, the tested
+AMatern or A2Matern penalized component is removed and the null model is
+refitted from the current fit. Calibration uses the weighted quadratic-form
+spectrum; it is not a Gaussian `U / sqrt(I)` test.
 }
 \examples{
 \dontrun{

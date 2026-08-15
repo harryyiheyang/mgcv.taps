@@ -4,9 +4,11 @@
 .Ruserdata
 .learnings/
 ..Rcheck/
+*.Rcheck/
 tmp/
 src/*.o
 src/*.dll
+src/symbols.rds
 research/
 example/
 REVISION_GUIDE.md

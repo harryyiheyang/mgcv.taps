@@ -54,7 +54,8 @@ taps_score_test_zip <- function(fit, test.component = 1,
     stop("The ZIP score test supports only mgcv::ziP().")
   }
 
-  X <- predict(fit, newdata = fit$model, type = "lpmatrix")
+  X <- fit$.taps_score_X
+  if (is.null(X)) X <- predict(fit, newdata = fit$model, type = "lpmatrix")
   beta <- as.numeric(fit$coefficients)
   smooth_terms <- fit$smooth
   p <- length(smooth_terms)

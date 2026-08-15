@@ -39,6 +39,38 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gammfast_gaussian_blup_cached
+arma::mat gammfast_gaussian_blup_cached(const arma::cube& BtB, const arma::cube& BtA, const arma::mat& G, const arma::vec& beta, double sigma2);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_blup_cached(SEXP BtBSEXP, SEXP BtASEXP, SEXP GSEXP, SEXP betaSEXP, SEXP sigma2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type BtB(BtBSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type BtA(BtASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma2(sigma2SEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_blup_cached(BtB, BtA, G, beta, sigma2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gammfast_gaussian_projected_cached
+List gammfast_gaussian_projected_cached(const arma::mat& AtA, const arma::cube& BtB, const arma::cube& BtA, const arma::mat& G, double sigma2, const arma::ivec& covariance_group, bool fisher);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_projected_cached(SEXP AtASEXP, SEXP BtBSEXP, SEXP BtASEXP, SEXP GSEXP, SEXP sigma2SEXP, SEXP covariance_groupSEXP, SEXP fisherSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type AtA(AtASEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type BtB(BtBSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type BtA(BtASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma2(sigma2SEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type covariance_group(covariance_groupSEXP);
+    Rcpp::traits::input_parameter< bool >::type fisher(fisherSEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_projected_cached(AtA, BtB, BtA, G, sigma2, covariance_group, fisher));
+    return rcpp_result_gen;
+END_RCPP
+}
 // gammfast_gaussian_crossprod_cached
 List gammfast_gaussian_crossprod_cached(const arma::mat& AtA, const arma::cube& BtB, const arma::cube& BtA, const arma::mat& H, int n_threads);
 RcppExport SEXP _mgcv_taps_gammfast_gaussian_crossprod_cached(SEXP AtASEXP, SEXP BtBSEXP, SEXP BtASEXP, SEXP HSEXP, SEXP n_threadsSEXP) {
@@ -101,42 +133,27 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// gammfast_laplace_variance_step
-List gammfast_laplace_variance_step(const arma::mat& X_penalized, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::mat& smooth_precision, const arma::vec& working_weight, const arma::vec& determinant_weight, const arma::vec& determinant_derivative, const arma::mat& u, int n_threads);
-RcppExport SEXP _mgcv_taps_gammfast_laplace_variance_step(SEXP X_penalizedSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP smooth_precisionSEXP, SEXP working_weightSEXP, SEXP determinant_weightSEXP, SEXP determinant_derivativeSEXP, SEXP uSEXP, SEXP n_threadsSEXP) {
+// gammfast_laplace_influence_cached
+List gammfast_laplace_influence_cached(const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::cube& working_BtB, const arma::cube& working_BtA, const arma::mat& working_mean_covariance, const arma::cube& determinant_BtB, const arma::cube& determinant_BtA, const arma::mat& determinant_mean_covariance, const arma::vec& determinant_derivative, const arma::mat& u, double scale, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_laplace_influence_cached(SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP working_BtBSEXP, SEXP working_BtASEXP, SEXP working_mean_covarianceSEXP, SEXP determinant_BtBSEXP, SEXP determinant_BtASEXP, SEXP determinant_mean_covarianceSEXP, SEXP determinant_derivativeSEXP, SEXP uSEXP, SEXP scaleSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type X_penalized(X_penalizedSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type smooth_precision(smooth_precisionSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type working_weight(working_weightSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type determinant_weight(determinant_weightSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type determinant_derivative(determinant_derivativeSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type u(uSEXP);
-    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_variance_step(X_penalized, B, id, G, smooth_precision, working_weight, determinant_weight, determinant_derivative, u, n_threads));
-    return rcpp_result_gen;
-END_RCPP
-}
-// gammfast_projected_moments
-List gammfast_projected_moments(const arma::vec& response, const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::mat& penalty, bool return_projection, double eigen_tol, int n_threads);
-RcppExport SEXP _mgcv_taps_gammfast_projected_moments(SEXP responseSEXP, SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP penaltySEXP, SEXP return_projectionSEXP, SEXP eigen_tolSEXP, SEXP n_threadsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type response(responseSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type id(idSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type penalty(penaltySEXP);
-    Rcpp::traits::input_parameter< bool >::type return_projection(return_projectionSEXP);
-    Rcpp::traits::input_parameter< double >::type eigen_tol(eigen_tolSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type working_BtB(working_BtBSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type working_BtA(working_BtASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type working_mean_covariance(working_mean_covarianceSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type determinant_BtB(determinant_BtBSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type determinant_BtA(determinant_BtASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type determinant_mean_covariance(determinant_mean_covarianceSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type determinant_derivative(determinant_derivativeSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type u(uSEXP);
+    Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(gammfast_projected_moments(response, X, B, id, G, penalty, return_projection, eigen_tol, n_threads));
+    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_influence_cached(X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -214,12 +231,13 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_cox_peto_suffstat", (DL_FUNC) &_mgcv_taps_cox_peto_suffstat, 4},
     {"_mgcv_taps_gammfast_gaussian_cache", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_cache, 4},
+    {"_mgcv_taps_gammfast_gaussian_blup_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_blup_cached, 5},
+    {"_mgcv_taps_gammfast_gaussian_projected_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_projected_cached, 7},
     {"_mgcv_taps_gammfast_gaussian_crossprod_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod_cached, 5},
     {"_mgcv_taps_gammfast_gaussian_crossprod", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod, 5},
     {"_mgcv_taps_gammfast_gaussian_moments", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_moments, 6},
     {"_mgcv_taps_gammfast_vinv_apply", (DL_FUNC) &_mgcv_taps_gammfast_vinv_apply, 6},
-    {"_mgcv_taps_gammfast_laplace_variance_step", (DL_FUNC) &_mgcv_taps_gammfast_laplace_variance_step, 10},
-    {"_mgcv_taps_gammfast_projected_moments", (DL_FUNC) &_mgcv_taps_gammfast_projected_moments, 9},
+    {"_mgcv_taps_gammfast_laplace_influence_cached", (DL_FUNC) &_mgcv_taps_gammfast_laplace_influence_cached, 14},
     {"_mgcv_taps_gammfast_variance_quadratic", (DL_FUNC) &_mgcv_taps_gammfast_variance_quadratic, 12},
     {"_mgcv_taps_native_re_uid_profile_create_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_create_cpp, 7},
     {"_mgcv_taps_native_re_uid_profile_apply_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_apply_cpp, 3},

@@ -82,20 +82,14 @@ n <- length(x)
 if (is.null(object$xt$getA)) {
 getA <- function(x,para) cbind(1,x)  # Default to using x itself
 para = 0
-A <- getA(x)
+A <- getA(x,para)
 } else {
 getA <- object$xt$getA
 para =  object$xt$para
 A <- getA(x,para)
 }
 
-# Check dimensions
-if (!is.matrix(A)) {
-stop("'getA(x)' must return a matrix.")
-}
-if (nrow(A) != n) {
-stop("The number of rows in matrix 'A' returned by getA(x) must match length of x.")
-}
+A <- taps_A_matrix(A, n)
 
 object$getA <- getA  # store function for later use
 object$para = para
