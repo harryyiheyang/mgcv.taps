@@ -140,7 +140,7 @@ for (case in cases) {
       fit$prior.weights, work$w
     )
     if (is.null(correction) || any(correction$weight < 0) ||
-        max(abs(correction$weight - work$w)) < 1e-8 ||
+        max(abs(correction$weight - work$w)) > 1e-10 ||
         any(!is.finite(correction$derivative))) {
       stop(case$name, " determinant correction is invalid.")
     }

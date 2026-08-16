@@ -33,6 +33,7 @@ List gammfast_laplace_influence_cached(
     const arma::vec& determinant_derivative,
     const arma::mat& u,
     double scale = 1.0,
+    bool same_curvature = false,
     int n_threads = 1) {
   const int n = X.n_rows;
   const int p = X.n_cols;
@@ -112,10 +113,15 @@ List gammfast_laplace_influence_cached(
     if (!arma::inv_sympd(
           working_D.slice(g),
           arma::symmatu(Ginv + working_BtB.slice(g)
-        )) || !arma::inv_sympd(
-          determinant_D.slice(g),
-          arma::symmatu(Ginv + determinant_BtB.slice(g))
-        )) {
+        ))) {
+      ok[g] = 0;
+      continue;
+    }
+    if (same_curvature) {
+      determinant_D.slice(g) = working_D.slice(g);
+    } else if (!arma::inv_sympd(
+                 determinant_D.slice(g),
+                 arma::symmatu(Ginv + determinant_BtB.slice(g)))) {
       ok[g] = 0;
       continue;
     }

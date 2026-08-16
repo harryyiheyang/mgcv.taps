@@ -134,8 +134,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gammfast_laplace_influence_cached
-List gammfast_laplace_influence_cached(const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::cube& working_BtB, const arma::cube& working_BtA, const arma::mat& working_mean_covariance, const arma::cube& determinant_BtB, const arma::cube& determinant_BtA, const arma::mat& determinant_mean_covariance, const arma::vec& determinant_derivative, const arma::mat& u, double scale, int n_threads);
-RcppExport SEXP _mgcv_taps_gammfast_laplace_influence_cached(SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP working_BtBSEXP, SEXP working_BtASEXP, SEXP working_mean_covarianceSEXP, SEXP determinant_BtBSEXP, SEXP determinant_BtASEXP, SEXP determinant_mean_covarianceSEXP, SEXP determinant_derivativeSEXP, SEXP uSEXP, SEXP scaleSEXP, SEXP n_threadsSEXP) {
+List gammfast_laplace_influence_cached(const arma::mat& X, const arma::mat& B, const arma::ivec& id, const arma::mat& G, const arma::cube& working_BtB, const arma::cube& working_BtA, const arma::mat& working_mean_covariance, const arma::cube& determinant_BtB, const arma::cube& determinant_BtA, const arma::mat& determinant_mean_covariance, const arma::vec& determinant_derivative, const arma::mat& u, double scale, bool same_curvature, int n_threads);
+RcppExport SEXP _mgcv_taps_gammfast_laplace_influence_cached(SEXP XSEXP, SEXP BSEXP, SEXP idSEXP, SEXP GSEXP, SEXP working_BtBSEXP, SEXP working_BtASEXP, SEXP working_mean_covarianceSEXP, SEXP determinant_BtBSEXP, SEXP determinant_BtASEXP, SEXP determinant_mean_covarianceSEXP, SEXP determinant_derivativeSEXP, SEXP uSEXP, SEXP scaleSEXP, SEXP same_curvatureSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -152,8 +152,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type determinant_derivative(determinant_derivativeSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type u(uSEXP);
     Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
+    Rcpp::traits::input_parameter< bool >::type same_curvature(same_curvatureSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_influence_cached(X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale, n_threads));
+    rcpp_result_gen = Rcpp::wrap(gammfast_laplace_influence_cached(X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale, same_curvature, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -237,7 +238,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_gammfast_gaussian_crossprod", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod, 5},
     {"_mgcv_taps_gammfast_gaussian_moments", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_moments, 6},
     {"_mgcv_taps_gammfast_vinv_apply", (DL_FUNC) &_mgcv_taps_gammfast_vinv_apply, 6},
-    {"_mgcv_taps_gammfast_laplace_influence_cached", (DL_FUNC) &_mgcv_taps_gammfast_laplace_influence_cached, 14},
+    {"_mgcv_taps_gammfast_laplace_influence_cached", (DL_FUNC) &_mgcv_taps_gammfast_laplace_influence_cached, 15},
     {"_mgcv_taps_gammfast_variance_quadratic", (DL_FUNC) &_mgcv_taps_gammfast_variance_quadratic, 12},
     {"_mgcv_taps_native_re_uid_profile_create_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_create_cpp, 7},
     {"_mgcv_taps_native_re_uid_profile_apply_cpp", (DL_FUNC) &_mgcv_taps_native_re_uid_profile_apply_cpp, 3},

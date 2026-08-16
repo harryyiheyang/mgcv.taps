@@ -52,9 +52,28 @@ gammfast_cached_moment <- function(cache, G, scale, covariance_group,
   list(G = G_new, mm = mm)
 }
 
-gammfast_cached_influence <- function(X, B, id, work, offset, cache, G,
-                                      scale, covariance_group,
-                                      t_correction, nthreads) {
+gammfast_prepare_influence_caches <- function(
+    X, B, id, work, offset, t_correction, nthreads) {
+  working <- gammfast_working_cache(X, B, id, work, offset, nthreads)
+  same_curvature <- is.null(t_correction) ||
+    !any(t_correction$weight != work$w)
+  determinant <- if (same_curvature) {
+    working
+  } else {
+    gammfast_weight_cache(
+      X, B, id, work$z - offset, t_correction$weight, nthreads
+    )
+  }
+  list(
+    working = working, determinant = determinant,
+    same.curvature = same_curvature
+  )
+}
+
+gammfast_cached_influence <- function(
+    X, B, id, G, scale, covariance_group, t_correction, nthreads,
+    caches) {
+  cache <- caches$working
   mm <- gammfast_gaussian_projected_cached(
     cache$AtA, cache$BtB, cache$BtA, G, scale,
     covariance_group, fisher = FALSE
@@ -62,12 +81,9 @@ gammfast_cached_influence <- function(X, B, id, work, offset, cache, G,
   if (is.null(t_correction)) {
     return(list(mm = mm, correction = NULL))
   }
-  determinant_cache <- cache
+  determinant_cache <- caches$determinant
   determinant_mean_covariance <- mm$mean_covariance
-  if (any(t_correction$weight != work$w)) {
-    determinant_cache <- gammfast_weight_cache(
-      X, B, id, work$z - offset, t_correction$weight, nthreads
-    )
+  if (!caches$same.curvature) {
     determinant_crossprod <- gammfast_gaussian_crossprod_cached(
       determinant_cache$AtA, determinant_cache$BtB,
       determinant_cache$BtA, G, n_threads = nthreads
@@ -89,6 +105,7 @@ gammfast_cached_influence <- function(X, B, id, work, offset, cache, G,
     determinant_mean_covariance = determinant_mean_covariance,
     determinant_derivative = t_correction$derivative,
     u = sqrt(scale) * mm$u, scale = scale,
+    same_curvature = caches$same.curvature,
     n_threads = nthreads
   )
   list(mm = mm, correction = influence$influence_sum)

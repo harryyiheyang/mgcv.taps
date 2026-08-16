@@ -25,6 +25,10 @@ utils::globalVariables(".gammfast_prior_weights")
 #' @param pirls.max Maximum PIRLS iterations for each fixed global
 #'   smoothing-parameter vector.
 #' @param pirls.tol Relative PIRLS deviance tolerance.
+#' @param influence.update Non-Gaussian Laplace-influence update strategy.
+#'   `"frozen"` preserves the original implementation by evaluating the
+#'   influence once per PIRLS working model. `"refreshed"` reevaluates it at
+#'   every subject-covariance update while reusing the working caches.
 #' @param nthreads Number of OpenMP threads used for subject-level operations.
 #' @param discrete Must be `FALSE`. The current solver does not implement the
 #'   mgcv/bam discrete model-matrix representation.
@@ -51,8 +55,8 @@ utils::globalVariables(".gammfast_prior_weights")
 #'   full-`X` mean-estimation Schur correction, and the Laplace determinant
 #'   influence correction. It does not eigendecompose or reparameterize the
 #'   global mean penalty for covariance updates. Gamma and inverse-Gaussian
-#'   models retain mgcv Fisher weights for P-IRLS while using family-specific
-#'   observed curvature in the determinant leverage. Extended-family nuisance
+#'   models retain mgcv Fisher weights for P-IRLS and use Fisher curvature
+#'   throughout the determinant leverage. Extended-family nuisance
 #'   parameters are updated by mgcv's family-parameter optimizer. Formula
 #'   offsets are retained in fitting and prediction. For non-Gaussian models,
 #'   each current global smoothing-parameter vector is held fixed while PIRLS
@@ -87,9 +91,11 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
                      inner.max = 300L, nthreads = 1L,
                      discrete = FALSE, control = list(), verbose = FALSE,
                      inner.tol = 1e-5, pirls.max = 100L,
-                     pirls.tol = 1e-6) {
+                     pirls.tol = 1e-6,
+                     influence.update = c("frozen", "refreshed")) {
   if (!inherits(formula, "formula")) stop("formula must be a model formula.")
   if (!is.data.frame(data)) stop("data must be a data frame.")
+  influence.update <- match.arg(influence.update)
   family_info <- gammfast_validate_family(family)
   family <- family_info$family
   if (is.null(weights)) weights <- rep(1, nrow(data))
@@ -221,7 +227,7 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       pirls.max = pirls.max, pirls.tol = pirls.tol,
       covariance_group = covariance_group,
       nthreads = nthreads, control = control, verbose = verbose,
-      call = match.call()
+      call = match.call(), influence.update = influence.update
     ))
   }
   if (any(prior_weights != 1)) {
@@ -363,6 +369,7 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     dispersion.method = "mgcv-fREML",
     family.parameter.method = "family-fixed",
     covariance.method = "mean-Hessian-projected-moment",
+    influence.update = "not-applicable",
     sp = final$sp,
     fitted.values = eta,
     linear.predictors = eta,
@@ -567,39 +574,6 @@ gammfast_t_correction <- function(family, y, eta, prior_weights,
         mu_eta * variance_derivative / variance
     )
     determinant_derivative <- fisher_derivative
-
-    if (family_name %in% c("gamma", "inverse.gaussian")) {
-      mu_eta3 <- 3 * family$d2link(mu)^2 * mu_eta^5 -
-        family$d3link(mu) * mu_eta^4
-      variance_second <- family$d2var(mu)
-      residual <- y - mu
-      observed_weight <- prior_weights * (
-        mu_eta^2 / variance +
-          residual * variance_derivative * mu_eta^2 / variance^2 -
-          residual * mu_eta2 / variance
-      )
-      observed_derivative <- prior_weights * (
-        3 * mu_eta * mu_eta2 / variance -
-          2 * mu_eta^3 * variance_derivative / variance^2 +
-          residual * (
-            variance_second * mu_eta^3 / variance^2 +
-              3 * variance_derivative * mu_eta * mu_eta2 / variance^2 -
-              2 * variance_derivative^2 * mu_eta^3 / variance^3 -
-              mu_eta3 / variance
-          )
-      )
-      blend <- 1
-      negative <- observed_weight < 0 & working_weight > 0
-      if (any(negative)) {
-        limit <- working_weight[negative] /
-          (working_weight[negative] - observed_weight[negative])
-        blend <- min(1, (1 - sqrt(.Machine$double.eps)) * min(limit))
-      }
-      determinant_weight <- working_weight +
-        blend * (observed_weight - working_weight)
-      determinant_derivative <- fisher_derivative +
-        blend * (observed_derivative - fisher_derivative)
-    }
   }
 
   if (is.null(determinant_derivative)) return(NULL)

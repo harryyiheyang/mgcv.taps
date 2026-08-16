@@ -16,7 +16,8 @@ gammfast(
   verbose = FALSE,
   inner.tol = 1e-05,
   pirls.max = 100L,
-  pirls.tol = 1e-06
+  pirls.tol = 1e-06,
+  influence.update = c("frozen", "refreshed")
 )
 }
 \arguments{
@@ -43,6 +44,11 @@ fixed PIRLS working model. The default is 300 iterations.}
 smoothing-parameter vector.}
 
 \item{pirls.tol}{Relative PIRLS deviance tolerance.}
+
+\item{influence.update}{Non-Gaussian Laplace-influence update strategy.
+\code{"frozen"} preserves the original implementation by evaluating the
+influence once per PIRLS working model. \code{"refreshed"} reevaluates it at
+every subject-covariance update while reusing the working caches.}
 
 \item{nthreads}{Number of OpenMP threads used for subject-level operations.}
 
@@ -83,8 +89,8 @@ smooth terms use the `mgcv` fREML machinery.
   full-`X` mean-estimation Schur correction, and the Laplace determinant
   influence correction. It does not eigendecompose or reparameterize the
   global mean penalty for covariance updates. Gamma and inverse-Gaussian
-  models retain mgcv Fisher weights for P-IRLS while using family-specific
-  observed curvature in the determinant leverage. Extended-family nuisance
+  models retain mgcv Fisher weights for P-IRLS and use Fisher curvature
+  throughout the determinant leverage. Extended-family nuisance
   parameters are updated by mgcv's family-parameter optimizer. Formula
   offsets are retained in fitting and prediction. For non-Gaussian models,
   each current global smoothing-parameter vector is held fixed while PIRLS

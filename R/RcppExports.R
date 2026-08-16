@@ -33,8 +33,8 @@ gammfast_vinv_apply <- function(A, B, id, G, R_diag, n_threads = 1L) {
     .Call(`_mgcv_taps_gammfast_vinv_apply`, A, B, id, G, R_diag, n_threads)
 }
 
-gammfast_laplace_influence_cached <- function(X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale = 1.0, n_threads = 1L) {
-    .Call(`_mgcv_taps_gammfast_laplace_influence_cached`, X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale, n_threads)
+gammfast_laplace_influence_cached <- function(X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale = 1.0, same_curvature = FALSE, n_threads = 1L) {
+    .Call(`_mgcv_taps_gammfast_laplace_influence_cached`, X, B, id, G, working_BtB, working_BtA, working_mean_covariance, determinant_BtB, determinant_BtA, determinant_mean_covariance, determinant_derivative, u, scale, same_curvature, n_threads)
 }
 
 gammfast_variance_quadratic <- function(response, X, beta, B, id, G, R_diag, penalty, probes, exact, eigen_tol = 1e-8, n_threads = 1L) {

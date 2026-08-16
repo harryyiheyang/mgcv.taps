@@ -1,22 +1,33 @@
 gammfast_non_gaussian_inner_G <- function(
     X, B, id, offset, G, work, t_correction,
     scale, covariance_group, group_index, ng, inner_tol, inner_max,
-    nthreads) {
-  cache <- gammfast_working_cache(X, B, id, work, offset, nthreads)
-  state <- gammfast_cached_influence(
-    X, B, id, work, offset, cache, G, scale, covariance_group,
-    t_correction, nthreads
+    nthreads, influence.update = c("frozen", "refreshed")) {
+  influence.update <- match.arg(influence.update)
+  caches <- gammfast_prepare_influence_caches(
+    X, B, id, work, offset, t_correction, nthreads
   )
-  correction <- state$correction
-  ready <- state$mm
+  cache <- caches$working
+  state <- NULL
+  if (identical(influence.update, "frozen")) {
+    state <- gammfast_cached_influence(
+      X, B, id, G, scale, covariance_group, t_correction, nthreads,
+      caches
+    )
+  }
   inner <- 0L
   local_change <- Inf
   repeat {
+    if (identical(influence.update, "refreshed")) {
+      state <- gammfast_cached_influence(
+        X, B, id, G, scale, covariance_group, t_correction, nthreads,
+        caches
+      )
+    }
     mapped <- gammfast_cached_moment(
       cache, G, scale, covariance_group, group_index, ng,
-      correction = correction, mm = ready
+      correction = state$correction, mm = state$mm
     )
-    ready <- NULL
+    if (identical(influence.update, "frozen")) state$mm <- NULL
     local_change <- norm(mapped$G - G, "F") / (1 + norm(G, "F"))
     G <- mapped$G
     inner <- inner + 1L
@@ -33,7 +44,7 @@ gammfast_non_gaussian_inner_G <- function(
 gammfast_non_gaussian_profile <- function(
     family, y, prior_weights, offset, G0, X, B, id, G, eta, sp, scale,
     covariance_group, group_index, ng, inner_tol, inner_max, nthreads,
-    pirls_control) {
+    pirls_control, influence.update) {
   mu <- family$linkinv(eta)
   deviance_old <- sum(family$dev.resids(y, mu, prior_weights))
   if (!is.finite(deviance_old)) {
@@ -58,7 +69,7 @@ gammfast_non_gaussian_profile <- function(
       work = work, t_correction = t_correction, scale = scale,
       covariance_group = covariance_group, group_index = group_index,
       ng = ng, inner_tol = inner_tol, inner_max = inner_max,
-      nthreads = nthreads
+      nthreads = nthreads, influence.update = influence.update
     )
     G <- local$G
     mode <- gammfast_fixed_mode_cached(

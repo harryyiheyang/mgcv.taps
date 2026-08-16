@@ -39,6 +39,14 @@ rdf <- fit$df.residual
 # Smooth terms list
 smooth_terms <- fit$smooth
 
+if (length(smooth_terms) < 1L || length(test.component) != 1L ||
+    !is.numeric(test.component) || is.na(test.component) ||
+    !is.finite(test.component) || test.component != floor(test.component) ||
+    test.component < 1 || test.component > length(smooth_terms)) {
+  stop("test.component must be a valid smooth-term index.")
+}
+test.component <- as.integer(test.component)
+
 # Prepare a list to store results for each smooth term
 out_list <- vector("list", length(smooth_terms))
 

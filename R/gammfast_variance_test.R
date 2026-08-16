@@ -73,8 +73,9 @@ gammfast_variance_test <- function(fit,
   X <- stats::predict(g, newdata = g$model, type = "lpmatrix") / sqrt(phi0)
   random <- gammfast_random_info(fit)
   B <- random$B / sqrt(phi0)
-  gaussian_family <- identical(tolower(fit$family$family[1]), "gaussian")
-  if (gaussian_family) {
+  gaussian_identity <- identical(tolower(fit$family$family[1L]), "gaussian") &&
+    identical(fit$family$link[1L], "identity")
+  if (gaussian_identity) {
     response <- (fit$y - fit$offset) / sqrt(phi0)
     R_diag <- rep(1, length(response))
     working_model <- "Gaussian"
