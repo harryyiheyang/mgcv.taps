@@ -3,7 +3,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
                                   id_factor, random_structure, inner.max,
                                   inner.tol, pirls.max, pirls.tol,
                                   covariance_group, nthreads, control,
-                                  verbose, call, influence.update) {
+                                  verbose, call) {
   family <- shell$family
   ng <- nlevels(id_factor)
   eta <- as.numeric(shell$linear.predictors)
@@ -56,8 +56,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
       covariance_group = covariance_group,
       group_index = random_structure$group.index, ng = ng,
       inner_tol = inner.tol, inner_max = inner.max,
-      nthreads = nthreads, pirls_control = pirls_control,
-      influence.update = influence.update
+      nthreads = nthreads, pirls_control = pirls_control
     )
     G <- profile$G
     family_scale <- profile$scale
@@ -129,8 +128,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     covariance_group = covariance_group,
     group_index = random_structure$group.index, ng = ng,
     inner_tol = inner.tol, inner_max = inner.max,
-    nthreads = nthreads, pirls_control = pirls_control,
-    influence.update = influence.update
+    nthreads = nthreads, pirls_control = pirls_control
   )
   G <- final_profile$G
   family_scale <- final_profile$scale
@@ -181,13 +179,8 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     } else {
       "family-fixed"
     },
-    covariance.method = if (identical(influence.update, "refreshed")) {
-      "cached-ordinary-X-Laplace-influence-refreshed-fixedpoint"
-    } else {
-      "cached-ordinary-X-Laplace-influence-fixedpoint"
-    },
+    covariance.method = "cached-ordinary-X-Laplace-influence-fixedpoint",
     optimization.method = "profiled-PIRLS-G-blockwise-fREML",
-    influence.update = influence.update,
     sp = sp_current, fitted.values = mu, linear.predictors = eta,
     global.fitted = eta_global, random.fitted = eta_random,
     residuals = y - mu, y = y, weights = work_final$w,

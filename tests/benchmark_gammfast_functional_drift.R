@@ -127,11 +127,11 @@ gammfast_formula <- y ~ s(time, k = 12L, bs = "cr") +
 gamm4_formula <- y ~ s(time, k = 12L, bs = "cr")
 gamm4_random <- ~(1 | id) + (0 + cos1 + cos2 + cos3 | id)
 
-fit_gammfast <- function(dat, family_name, influence_update) {
+fit_gammfast <- function(dat, family_name) {
   fit <- gammfast(
     gammfast_formula, data = dat, family = family_factory(family_name),
     inner.max = 5L, inner.tol = 1e-5, pirls.max = pirls_max,
-    nthreads = 1L, influence.update = influence_update,
+    nthreads = 1L,
     control = list(max.outer = 1000L, objective.tol = 1e-5)
   )
   group_types <- vapply(
@@ -320,9 +320,8 @@ unpack_covariance <- function(x) {
 records <- list()
 record_index <- 0L
 method_orders <- list(
-  c("reference", "frozen", "refreshed"),
-  c("refreshed", "reference", "frozen"),
-  c("frozen", "refreshed", "reference")
+  c("reference", "gammfast"),
+  c("gammfast", "reference")
 )
 for (family_name in family_names) {
   family_seed_index <- match(family_name, available_families)
@@ -334,7 +333,7 @@ for (family_name in family_names) {
       seed <- 20261000L + family_seed_index * 1000L +
         drift_seed_index * 100L + replicate_index
       dat <- simulate_data(family_name, drift_scale, seed)
-      order_index <- 1L + (replicate_index + drift_seed_index - 2L) %% 3L
+      order_index <- 1L + (replicate_index + drift_seed_index - 2L) %% 2L
       for (method_key in method_orders[[order_index]]) {
         method <- if (identical(method_key, "reference")) {
           reference_method(family_name)
@@ -344,12 +343,7 @@ for (family_name in family_names) {
         result <- switch(method,
           gamm4 = run_timed(function() fit_gamm4(dat, family_name)),
           inla = run_timed(function() fit_inla(dat, family_name)),
-          frozen = run_timed(function() fit_gammfast(
-            dat, family_name, "frozen"
-          )),
-          refreshed = run_timed(function() fit_gammfast(
-            dat, family_name, "refreshed"
-          ))
+          gammfast = run_timed(function() fit_gammfast(dat, family_name))
         )
         value <- result$value
         covariance <- if (is.null(value)) {
@@ -381,7 +375,6 @@ results$relative_G_error_truth <- NA_real_
 results$diagonal_log_rmse_truth <- NA_real_
 results$correlation_rmse_truth <- NA_real_
 results$relative_G_error_reference <- NA_real_
-results$relative_difference_vs_frozen <- NA_real_
 
 covariance_names <- names(pack_covariance(diag(3L)))
 key <- paste(results$family, results$drift, results$replicate)
@@ -402,7 +395,6 @@ for (i in seq_len(nrow(results))) {
   }
 
   reference_index <- key == key[i] & results$method == results$reference[i]
-  frozen_index <- key == key[i] & results$method == "frozen"
   if (sum(reference_index) == 1L) {
     G_reference <- unpack_covariance(unlist(
       results[reference_index, covariance_names]
@@ -410,17 +402,6 @@ for (i in seq_len(nrow(results))) {
     results$relative_G_error_reference[i] <-
       norm(G_estimate - G_reference, "F") /
         pmax(norm(G_reference, "F"), 1e-10)
-  }
-  if (identical(results$method[i], "refreshed") &&
-      sum(frozen_index) == 1L) {
-    G_frozen <- unpack_covariance(unlist(
-      results[frozen_index, covariance_names]
-    ))
-    results$relative_difference_vs_frozen[i] <-
-      norm(G_estimate - G_frozen, "F") /
-        pmax(norm(G_frozen, "F"), 1e-10)
-  } else {
-    results$relative_difference_vs_frozen[i] <- 0
   }
 }
 
@@ -431,8 +412,7 @@ median_finite <- function(x) {
 summary_accuracy <- aggregate(
   cbind(
     intercept, relative_G_error_truth, diagonal_log_rmse_truth,
-    correlation_rmse_truth, relative_G_error_reference, mean_rmse,
-    relative_difference_vs_frozen
+    correlation_rmse_truth, relative_G_error_reference, mean_rmse
   ) ~ family + drift + drift_scale + method,
   data = results, FUN = median_finite, na.action = stats::na.pass
 )

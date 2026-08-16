@@ -16,8 +16,7 @@ gammfast(
   verbose = FALSE,
   inner.tol = 1e-05,
   pirls.max = 100L,
-  pirls.tol = 1e-06,
-  influence.update = c("frozen", "refreshed")
+  pirls.tol = 1e-06
 )
 }
 \arguments{
@@ -44,11 +43,6 @@ fixed PIRLS working model. The default is 300 iterations.}
 smoothing-parameter vector.}
 
 \item{pirls.tol}{Relative PIRLS deviance tolerance.}
-
-\item{influence.update}{Non-Gaussian Laplace-influence update strategy.
-\code{"frozen"} preserves the original implementation by evaluating the
-influence once per PIRLS working model. \code{"refreshed"} reevaluates it at
-every subject-covariance update while reusing the working caches.}
 
 \item{nthreads}{Number of OpenMP threads used for subject-level operations.}
 

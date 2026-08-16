@@ -25,10 +25,6 @@ utils::globalVariables(".gammfast_prior_weights")
 #' @param pirls.max Maximum PIRLS iterations for each fixed global
 #'   smoothing-parameter vector.
 #' @param pirls.tol Relative PIRLS deviance tolerance.
-#' @param influence.update Non-Gaussian Laplace-influence update strategy.
-#'   `"frozen"` preserves the original implementation by evaluating the
-#'   influence once per PIRLS working model. `"refreshed"` reevaluates it at
-#'   every subject-covariance update while reusing the working caches.
 #' @param nthreads Number of OpenMP threads used for subject-level operations.
 #' @param discrete Must be `FALSE`. The current solver does not implement the
 #'   mgcv/bam discrete model-matrix representation.
@@ -91,11 +87,9 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
                      inner.max = 300L, nthreads = 1L,
                      discrete = FALSE, control = list(), verbose = FALSE,
                      inner.tol = 1e-5, pirls.max = 100L,
-                     pirls.tol = 1e-6,
-                     influence.update = c("frozen", "refreshed")) {
+                     pirls.tol = 1e-6) {
   if (!inherits(formula, "formula")) stop("formula must be a model formula.")
   if (!is.data.frame(data)) stop("data must be a data frame.")
-  influence.update <- match.arg(influence.update)
   family_info <- gammfast_validate_family(family)
   family <- family_info$family
   if (is.null(weights)) weights <- rep(1, nrow(data))
@@ -227,7 +221,7 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       pirls.max = pirls.max, pirls.tol = pirls.tol,
       covariance_group = covariance_group,
       nthreads = nthreads, control = control, verbose = verbose,
-      call = match.call(), influence.update = influence.update
+      call = match.call()
     ))
   }
   if (any(prior_weights != 1)) {
@@ -369,7 +363,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     dispersion.method = "mgcv-fREML",
     family.parameter.method = "family-fixed",
     covariance.method = "mean-Hessian-projected-moment",
-    influence.update = "not-applicable",
     sp = final$sp,
     fitted.values = eta,
     linear.predictors = eta,

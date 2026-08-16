@@ -1,6 +1,10 @@
 library(mgcv)
 library(mgcv.taps)
 
+if ("influence.update" %in% names(formals(gammfast))) {
+  stop("The obsolete influence-update API is still exposed.")
+}
+
 family <- stats::inverse.gaussian(link = "log")
 y_exact <- c(0.2, 0.4, 0.6, 2)
 eta_exact <- rep(0, length(y_exact))
