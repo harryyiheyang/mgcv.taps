@@ -12,13 +12,14 @@ gammfast_working_cache <- function(X, B, id, work, offset, nthreads) {
   )
 }
 
-gammfast_fixed_mode_cached <- function(G0, X, B, id, cache, G, scale,
-                                       sp, nthreads) {
+# Conditional PIRLS mode given the current working data, G, scale, and sp.
+gammfast_conditional_mode_cached <- function(G0, cache, G, scale, sp,
+                                             nthreads) {
   cp <- gammfast_gaussian_crossprod_cached(
     cache$AtA, cache$BtB, cache$BtA, G, n_threads = nthreads
   )
   H <- (cp$crossprod + t(cp$crossprod)) / 2
-  p <- ncol(X)
+  p <- ncol(G0$X)
   XtX <- H[seq_len(p), seq_len(p), drop = FALSE]
   Xtz <- H[seq_len(p), p + 1L]
   penalty <- gammfast_penalty_matrix(G0, sp)
@@ -32,18 +33,17 @@ gammfast_fixed_mode_cached <- function(G0, X, B, id, cache, G, scale,
   list(
     beta = beta, u = u,
     Vp = scale * precision_inverse,
-    Ve = scale * precision_inverse %*% XtX %*% precision_inverse,
-    logdet = cp$logdet
+    Ve = scale * precision_inverse %*% XtX %*% precision_inverse
   )
 }
 
-gammfast_cached_moment <- function(cache, G, scale, covariance_group,
-                                   group_index, ng, correction = NULL,
-                                   mm = NULL) {
+gammfast_cached_moment <- function(cache, G, scale, group_index, ng,
+                                   mean_penalty,
+                                   correction = NULL, mm = NULL) {
   if (is.null(mm)) {
     mm <- gammfast_gaussian_projected_cached(
       cache$AtA, cache$BtB, cache$BtA, G, scale,
-      covariance_group, fisher = FALSE
+      mean_penalty
     )
   }
   moment <- mm$moment_sum
@@ -71,12 +71,12 @@ gammfast_prepare_influence_caches <- function(
 }
 
 gammfast_cached_influence <- function(
-    X, B, id, G, scale, covariance_group, t_correction, nthreads,
-    caches) {
+    X, B, id, G, scale, mean_penalty,
+    t_correction, nthreads, caches) {
   cache <- caches$working
   mm <- gammfast_gaussian_projected_cached(
     cache$AtA, cache$BtB, cache$BtA, G, scale,
-    covariance_group, fisher = FALSE
+    mean_penalty
   )
   if (is.null(t_correction)) {
     return(list(mm = mm, correction = NULL))
@@ -91,7 +91,7 @@ gammfast_cached_influence <- function(
     p <- ncol(X)
     determinant_precision <- determinant_crossprod$crossprod[
       seq_len(p), seq_len(p), drop = FALSE
-    ] / scale
+    ] / scale + mean_penalty
     determinant_mean_covariance <- chol2inv(chol(
       (determinant_precision + t(determinant_precision)) / 2
     ))

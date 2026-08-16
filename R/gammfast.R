@@ -26,8 +26,6 @@ utils::globalVariables(".gammfast_prior_weights")
 #'   smoothing-parameter vector.
 #' @param pirls.tol Relative PIRLS deviance tolerance.
 #' @param nthreads Number of OpenMP threads used for subject-level operations.
-#' @param discrete Must be `FALSE`. The current solver does not implement the
-#'   mgcv/bam discrete model-matrix representation.
 #' @param control A list with `objective.tol` and `max.outer`. Outer iterations
 #'   stop on relative convergence of the branch-specific reported objective.
 #'   For non-Gaussian fits this is explicitly a blockwise working
@@ -47,10 +45,10 @@ utils::globalVariables(".gammfast_prior_weights")
 #'   shared-UID marginal forms and estimates the subject covariance without
 #'   expanding an `n` by `n_subject * q` random-effect design. For models for
 #'   which the expected working-curvature derivative is available, the
-#'   covariance update combines the conditional BLUP moment, the ordinary
-#'   full-`X` mean-estimation Schur correction, and the Laplace determinant
-#'   influence correction. It does not eigendecompose or reparameterize the
-#'   global mean penalty for covariance updates. Gamma and inverse-Gaussian
+#'   covariance update combines the conditional BLUP moment, the penalized
+#'   global-mean Hessian correction, and the Laplace determinant influence
+#'   correction. The global smooth penalty is therefore retained in the
+#'   covariance projection. Gamma and inverse-Gaussian
 #'   models retain mgcv Fisher weights for P-IRLS and use Fisher curvature
 #'   throughout the determinant leverage. Extended-family nuisance
 #'   parameters are updated by mgcv's family-parameter optimizer. Formula
@@ -85,7 +83,7 @@ utils::globalVariables(".gammfast_prior_weights")
 #' @export
 gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
                      inner.max = 300L, nthreads = 1L,
-                     discrete = FALSE, control = list(), verbose = FALSE,
+                     control = list(), verbose = FALSE,
                      inner.tol = 1e-5, pirls.max = 100L,
                      pirls.tol = 1e-6) {
   if (!inherits(formula, "formula")) stop("formula must be a model formula.")
@@ -136,13 +134,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
   inner.max <- as.integer(inner.max)
   pirls.max <- as.integer(pirls.max)
   nthreads <- as.integer(nthreads)
-  if (length(discrete) != 1L || is.na(discrete) || !is.logical(discrete)) {
-    stop("discrete must be a single TRUE or FALSE value.")
-  }
-  if (isTRUE(discrete)) {
-    stop("gammfast does not support discrete = TRUE; use discrete = FALSE.")
-  }
-
   defaults <- list(
     objective.tol = 1e-7,
     max.outer = 5000L
@@ -196,19 +187,11 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     parsed$groups, data, id_name, levels(id_factor)
   )
   B <- random_structure$B
-  covariance_group <- integer(ncol(B))
-  for (j in seq_along(random_structure$group.index)) {
-    covariance_group[random_structure$group.index[[j]]] <- j
-  }
   random_structure$id <- id_name
   random_structure$id.levels <- levels(id_factor)
   random_structure$id.index <- id
 
   Sl.setup <- utils::getFromNamespace("Sl.setup", "mgcv")
-  Sl.Xprep <- utils::getFromNamespace("Sl.Xprep", "mgcv")
-  Sl.postproc <- utils::getFromNamespace("Sl.postproc", "mgcv")
-  initial.sp <- utils::getFromNamespace("initial.sp", "mgcv")
-  fast.REML.fit <- utils::getFromNamespace("fast.REML.fit", "mgcv")
   Sl <- Sl.setup(G0)
 
   if (!family_info$gaussian) {
@@ -219,7 +202,6 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       id_factor = id_factor, random_structure = random_structure,
       inner.max = inner.max, inner.tol = inner.tol,
       pirls.max = pirls.max, pirls.tol = pirls.tol,
-      covariance_group = covariance_group,
       nthreads = nthreads, control = control, verbose = verbose,
       call = match.call()
     ))
@@ -235,56 +217,30 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
   crossprod_cache <- gammfast_gaussian_cache(
     A, B, id, n_threads = nthreads
   )
-  rho_start <- NULL
-  sp_old <- NULL
-  sigma2_old <- NULL
+  initial <- gammfast_gaussian_outer_step(
+    G0, Sl, crossprod_cache, G, sigma2, NULL, nthreads,
+    estimate_phi = TRUE
+  )
+  rho_start <- initial$rho
+  sp_current <- initial$sp
+  sigma2 <- initial$phi
   objective_old <- NULL
   trace <- data.frame()
   converged <- FALSE
   start_time <- proc.time()[[3]]
 
   for (outer in seq_len(control$max.outer)) {
-    cp <- gammfast_gaussian_crossprod_cached(
-      crossprod_cache$AtA, crossprod_cache$BtB,
-      crossprod_cache$BtA, G, n_threads = nthreads
-    )
-    H <- (cp$crossprod + t(cp$crossprod)) / 2
-    p <- ncol(X)
-    XtX <- H[seq_len(p), seq_len(p), drop = FALSE]
-    Xty <- H[seq_len(p), p + 1L]
-    yty <- H[p + 1L, p + 1L]
-    R1 <- chol(XtX)
-    f <- forwardsolve(t(R1), Xty)
-    rss_extra <- max(0, yty - sum(f^2))
-    um <- Sl.Xprep(Sl, R1, nt = nthreads)
-    if (is.null(rho_start)) {
-      rho_start <- log(initial.sp(R1, G0$S, G0$off))
-    }
-    fr <- fast.REML.fit(
-      um$Sl, um$X, f, rho = rho_start,
-      L = G0$L, rho.0 = G0$lsp0,
-      log.phi = log(sigma2), phi.fixed = FALSE,
-      rss.extra = rss_extra, nobs = length(y), Mp = um$Mp,
-      nt = nthreads, gamma = 1
-    )
-    pars <- gammfast_reml_parameters(fr, G0, estimate_phi = TRUE)
-    sigma2 <- pars$phi
-    pp <- Sl.postproc(
-      Sl, fr, um$undrop, R1, cov = TRUE,
-      scale = sigma2, L = G0$L, nt = nthreads
-    )
-    beta <- pp$beta
-    rho_start <- pars$rho
-    eta_global_work <- drop(X %*% beta)
-
     inner <- 0L
     fixedpoint_G <- Inf
+    mean_penalty <- gammfast_penalty_matrix(
+      G0, sp_current, scale = sigma2
+    )
     repeat {
       inner <- inner + 1L
       mm <- gammfast_gaussian_projected_cached(
         crossprod_cache$AtA, crossprod_cache$BtB,
-        crossprod_cache$BtA, G, sigma2, covariance_group,
-        fisher = FALSE
+        crossprod_cache$BtA, G, sigma2,
+        mean_penalty
       )
       G_new <- gammfast_project_covariance(
         mm$moment_sum / ng, random_structure$group.index
@@ -294,10 +250,15 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       if (fixedpoint_G < inner.tol ||
           gammfast_inner_limit(inner, inner.max)) break
     }
-    dphi <- if (is.null(sigma2_old)) Inf else abs(log(sigma2 / sigma2_old))
-    sp_now <- pars$sp
-    dsp <- if (is.null(sp_old)) Inf else max(abs(log(sp_now / sp_old)))
-    objective <- fr$reml + 0.5 * cp$logdet
+    step <- gammfast_gaussian_outer_step(
+      G0, Sl, crossprod_cache, G, sigma2, rho_start, nthreads,
+      estimate_phi = TRUE
+    )
+    sigma2_new <- step$phi
+    sp_new <- step$sp
+    dphi <- abs(log(sigma2_new / sigma2))
+    dsp <- max(abs(log(sp_new / sp_current)))
+    objective <- step$fr$reml + 0.5 * step$logdet
     dobjective <- if (is.null(objective_old)) {
       Inf
     } else {
@@ -307,7 +268,7 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       outer = outer, objective = objective,
       dobjective = dobjective, fixedpoint_G = fixedpoint_G,
       dphi = dphi, dsp = dsp,
-      sig2 = sigma2, fixed_updates = inner
+      sig2 = sigma2_new, fixed_updates = inner
     ))
     if (verbose) {
       cat(
@@ -317,24 +278,42 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
       )
     }
     converged <- outer > 2L && dobjective < control$objective.tol
-    sp_old <- sp_now
-    sigma2_old <- sigma2
+    if (sigma2_new != sigma2) G <- G * sigma2 / sigma2_new
+    sigma2 <- sigma2_new
+    sp_current <- sp_new
+    rho_start <- step$rho
     objective_old <- objective
     if (converged) break
   }
 
-  final <- gammfast_global_step(
-    G0, Sl, X, y_work, B, id, G, sigma2, rho_start, nthreads,
-    crossprod_cache = crossprod_cache, estimate_phi = TRUE
+  inner <- 0L
+  fixedpoint_G <- Inf
+  mean_penalty <- gammfast_penalty_matrix(
+    G0, sp_current, scale = sigma2
   )
-  sigma2 <- final$phi
+  repeat {
+    inner <- inner + 1L
+    mm <- gammfast_gaussian_projected_cached(
+      crossprod_cache$AtA, crossprod_cache$BtB,
+      crossprod_cache$BtA, G, sigma2,
+      mean_penalty
+    )
+    G_new <- gammfast_project_covariance(
+      mm$moment_sum / ng, random_structure$group.index
+    )
+    fixedpoint_G <- norm(G_new - G, "F") / (1 + norm(G, "F"))
+    G <- G_new
+    if (fixedpoint_G < inner.tol ||
+        gammfast_inner_limit(inner, inner.max)) break
+  }
+  final <- gammfast_conditional_mode_cached(
+    G0, crossprod_cache, G, sigma2, sp_current, nthreads
+  )
   beta <- final$beta
   names(beta) <- names(shell$coefficients)
   eta_global_work <- drop(X %*% beta)
   eta_global <- offset + eta_global_work
-  u <- sqrt(sigma2) * gammfast_gaussian_blup_cached(
-    crossprod_cache$BtB, crossprod_cache$BtA, G, beta, sigma2
-  )
+  u <- final$u
   rownames(u) <- levels(id_factor)
   colnames(u) <- random_structure$column.names
   eta_random <- rowSums(B * u[id, , drop = FALSE])
@@ -345,25 +324,26 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
   )
 
   shell$coefficients <- beta
-  shell$sp <- final$sp
+  shell$sp <- sp_current
   shell$sig2 <- sigma2
   shell$scale <- sigma2
   shell$weights <- prior_weights
-  shell$Vp <- final$pp$Vp
-  shell$Ve <- final$pp$Ve
+  shell$Vp <- final$Vp
+  shell$Ve <- final$Ve
   shell$linear.predictors <- eta_global
   shell$fitted.values <- eta_global
 
   fit <- list(
     coefficients = beta,
-    Vp = final$pp$Vp,
-    Ve = final$pp$Ve,
+    Vp = final$Vp,
+    Ve = final$Ve,
     random.effects = u,
     G = sigma2 * G,
     dispersion.method = "mgcv-fREML",
     family.parameter.method = "family-fixed",
-    covariance.method = "mean-Hessian-projected-moment",
-    sp = final$sp,
+    covariance.method = "penalized-mean-Hessian-projected-moment",
+    optimization.method = "G-fixedpoint-blockwise-fREML",
+    sp = sp_current,
     fitted.values = eta,
     linear.predictors = eta,
     global.fitted = eta_global,
@@ -372,7 +352,7 @@ gammfast <- function(formula, data, family = stats::gaussian(), weights = NULL,
     y = y, weights = prior_weights, offset = offset,
     sig2 = sigma2,
     prior.weights = prior_weights,
-    objective = final$fr$reml + 0.5 * final$logdet,
+    objective = objective_old,
     converged = converged,
     outer = nrow(trace),
     inner.max = inner.max, inner.tol = inner.tol,
@@ -995,26 +975,18 @@ gammfast_random_design <- function(random_structure, newdata) {
   list(B = B, clamped = clamped)
 }
 
-gammfast_global_step <- function(G0, Sl, X, y, B, id, G, sigma2,
-                                 rho_start, nthreads,
-                                 crossprod_cache = NULL,
-                                 estimate_phi = FALSE) {
+gammfast_gaussian_outer_step <- function(
+    G0, Sl, crossprod_cache, G, sigma2, rho_start, nthreads,
+    estimate_phi = FALSE) {
   Sl.Xprep <- utils::getFromNamespace("Sl.Xprep", "mgcv")
-  Sl.postproc <- utils::getFromNamespace("Sl.postproc", "mgcv")
+  initial.sp <- utils::getFromNamespace("initial.sp", "mgcv")
   fast.REML.fit <- utils::getFromNamespace("fast.REML.fit", "mgcv")
-  if (is.null(crossprod_cache)) {
-    A <- cbind(X, y)
-    cp <- gammfast_gaussian_crossprod(
-      A, B, id, G, n_threads = nthreads
-    )
-  } else {
-    cp <- gammfast_gaussian_crossprod_cached(
-      crossprod_cache$AtA, crossprod_cache$BtB,
-      crossprod_cache$BtA, G, n_threads = nthreads
-    )
-  }
+  cp <- gammfast_gaussian_crossprod_cached(
+    crossprod_cache$AtA, crossprod_cache$BtB,
+    crossprod_cache$BtA, G, n_threads = nthreads
+  )
   H <- (cp$crossprod + t(cp$crossprod)) / 2
-  p <- ncol(X)
+  p <- ncol(G0$X)
   XtX <- H[seq_len(p), seq_len(p), drop = FALSE]
   Xty <- H[seq_len(p), p + 1L]
   yty <- H[p + 1L, p + 1L]
@@ -1022,22 +994,21 @@ gammfast_global_step <- function(G0, Sl, X, y, B, id, G, sigma2,
   f <- forwardsolve(t(R1), Xty)
   rss_extra <- max(0, yty - sum(f^2))
   um <- Sl.Xprep(Sl, R1, nt = nthreads)
+  if (is.null(rho_start)) {
+    rho_start <- log(initial.sp(R1, G0$S, G0$off))
+  }
   fr <- fast.REML.fit(
     um$Sl, um$X, f, rho = rho_start,
     L = G0$L, rho.0 = G0$lsp0,
     log.phi = log(sigma2), phi.fixed = !estimate_phi,
-    rss.extra = rss_extra, nobs = length(y), Mp = um$Mp,
+    rss.extra = rss_extra, nobs = nrow(G0$X), Mp = um$Mp,
     nt = nthreads, gamma = 1
   )
   pars <- gammfast_reml_parameters(
     fr, G0, estimate_phi = estimate_phi, phi = sigma2
   )
-  pp <- Sl.postproc(
-    Sl, fr, um$undrop, R1, cov = TRUE,
-    scale = pars$phi, L = G0$L, nt = nthreads
-  )
   list(
-    beta = pp$beta, fr = fr, pp = pp, logdet = cp$logdet,
+    fr = fr, logdet = cp$logdet,
     rho = pars$rho, sp = pars$sp, phi = pars$phi
   )
 }

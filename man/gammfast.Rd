@@ -11,7 +11,6 @@ gammfast(
   weights = NULL,
   inner.max = 300L,
   nthreads = 1L,
-  discrete = FALSE,
   control = list(),
   verbose = FALSE,
   inner.tol = 1e-05,
@@ -37,17 +36,7 @@ and Tweedie. Standard links supported by mgcv are accepted.}
 \item{inner.max}{Optional safety limit for shared-UID covariance updates per
 fixed PIRLS working model. The default is 300 iterations.}
 
-\item{inner.tol}{Relative covariance fixed-point tolerance.}
-
-\item{pirls.max}{Maximum PIRLS iterations for each fixed global
-smoothing-parameter vector.}
-
-\item{pirls.tol}{Relative PIRLS deviance tolerance.}
-
 \item{nthreads}{Number of OpenMP threads used for subject-level operations.}
-
-\item{discrete}{Must be `FALSE`. The current solver does not implement the
-mgcv/bam discrete model-matrix representation.}
 
 \item{control}{A list with `objective.tol` and `max.outer`. Outer iterations
 stop on relative convergence of the branch-specific reported objective.
@@ -57,6 +46,13 @@ or reaches `inner.max`. The former `fixedpoint.tol` entry is accepted as
 an alias for `inner.tol`.}
 
 \item{verbose}{Whether to print outer-iteration diagnostics.}
+
+\item{inner.tol}{Relative covariance fixed-point tolerance.}
+
+\item{pirls.max}{Maximum PIRLS iterations for each fixed global
+smoothing-parameter vector.}
+
+\item{pirls.tol}{Relative PIRLS deviance tolerance.}
 }
 \value{
 An object of class `"gammfast"` containing the global fit, the full
@@ -79,10 +75,10 @@ smooth terms use the `mgcv` fREML machinery.
   shared-UID marginal forms and estimates the subject covariance without
   expanding an `n` by `n_subject * q` random-effect design. For models for
   which the expected working-curvature derivative is available, the
-  covariance update combines the conditional BLUP moment, the ordinary
-  full-`X` mean-estimation Schur correction, and the Laplace determinant
-  influence correction. It does not eigendecompose or reparameterize the
-  global mean penalty for covariance updates. Gamma and inverse-Gaussian
+  covariance update combines the conditional BLUP moment, the penalized
+  global-mean Hessian correction, and the Laplace determinant influence
+  correction. The global smooth penalty is therefore retained in the
+  covariance projection. Gamma and inverse-Gaussian
   models retain mgcv Fisher weights for P-IRLS and use Fisher curvature
   throughout the determinant leverage. Extended-family nuisance
   parameters are updated by mgcv's family-parameter optimizer. Formula

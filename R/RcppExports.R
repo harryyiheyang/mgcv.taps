@@ -13,8 +13,8 @@ gammfast_gaussian_blup_cached <- function(BtB, BtA, G, beta, sigma2) {
     .Call(`_mgcv_taps_gammfast_gaussian_blup_cached`, BtB, BtA, G, beta, sigma2)
 }
 
-gammfast_gaussian_projected_cached <- function(AtA, BtB, BtA, G, sigma2, covariance_group, fisher = FALSE) {
-    .Call(`_mgcv_taps_gammfast_gaussian_projected_cached`, AtA, BtB, BtA, G, sigma2, covariance_group, fisher)
+gammfast_gaussian_projected_cached <- function(AtA, BtB, BtA, G, sigma2, mean_penalty) {
+    .Call(`_mgcv_taps_gammfast_gaussian_projected_cached`, AtA, BtB, BtA, G, sigma2, mean_penalty)
 }
 
 gammfast_gaussian_crossprod_cached <- function(AtA, BtB, BtA, H, n_threads = 1L) {

@@ -55,8 +55,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gammfast_gaussian_projected_cached
-List gammfast_gaussian_projected_cached(const arma::mat& AtA, const arma::cube& BtB, const arma::cube& BtA, const arma::mat& G, double sigma2, const arma::ivec& covariance_group, bool fisher);
-RcppExport SEXP _mgcv_taps_gammfast_gaussian_projected_cached(SEXP AtASEXP, SEXP BtBSEXP, SEXP BtASEXP, SEXP GSEXP, SEXP sigma2SEXP, SEXP covariance_groupSEXP, SEXP fisherSEXP) {
+List gammfast_gaussian_projected_cached(const arma::mat& AtA, const arma::cube& BtB, const arma::cube& BtA, const arma::mat& G, double sigma2, const arma::mat& mean_penalty);
+RcppExport SEXP _mgcv_taps_gammfast_gaussian_projected_cached(SEXP AtASEXP, SEXP BtBSEXP, SEXP BtASEXP, SEXP GSEXP, SEXP sigma2SEXP, SEXP mean_penaltySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -65,9 +65,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::cube& >::type BtA(BtASEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
     Rcpp::traits::input_parameter< double >::type sigma2(sigma2SEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type covariance_group(covariance_groupSEXP);
-    Rcpp::traits::input_parameter< bool >::type fisher(fisherSEXP);
-    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_projected_cached(AtA, BtB, BtA, G, sigma2, covariance_group, fisher));
+    Rcpp::traits::input_parameter< const arma::mat& >::type mean_penalty(mean_penaltySEXP);
+    rcpp_result_gen = Rcpp::wrap(gammfast_gaussian_projected_cached(AtA, BtB, BtA, G, sigma2, mean_penalty));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -233,7 +232,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcv_taps_cox_peto_suffstat", (DL_FUNC) &_mgcv_taps_cox_peto_suffstat, 4},
     {"_mgcv_taps_gammfast_gaussian_cache", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_cache, 4},
     {"_mgcv_taps_gammfast_gaussian_blup_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_blup_cached, 5},
-    {"_mgcv_taps_gammfast_gaussian_projected_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_projected_cached, 7},
+    {"_mgcv_taps_gammfast_gaussian_projected_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_projected_cached, 6},
     {"_mgcv_taps_gammfast_gaussian_crossprod_cached", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod_cached, 5},
     {"_mgcv_taps_gammfast_gaussian_crossprod", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_crossprod, 5},
     {"_mgcv_taps_gammfast_gaussian_moments", (DL_FUNC) &_mgcv_taps_gammfast_gaussian_moments, 6},

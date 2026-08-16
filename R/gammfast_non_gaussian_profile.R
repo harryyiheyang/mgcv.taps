@@ -1,20 +1,22 @@
 gammfast_non_gaussian_inner_G <- function(
-    X, B, id, offset, G, work, t_correction,
-    scale, covariance_group, group_index, ng, inner_tol, inner_max,
+    X, B, id, offset, G, work, t_correction, mean_penalty,
+    scale, group_index, ng, inner_tol, inner_max,
     nthreads) {
   caches <- gammfast_prepare_influence_caches(
     X, B, id, work, offset, t_correction, nthreads
   )
   cache <- caches$working
   state <- gammfast_cached_influence(
-    X, B, id, G, scale, covariance_group, t_correction, nthreads,
+    X, B, id, G, scale, mean_penalty,
+    t_correction, nthreads,
     caches
   )
   inner <- 0L
   local_change <- Inf
   repeat {
     mapped <- gammfast_cached_moment(
-      cache, G, scale, covariance_group, group_index, ng,
+      cache, G, scale, group_index, ng,
+      mean_penalty = mean_penalty,
       correction = state$correction, mm = state$mm
     )
     state$mm <- NULL
@@ -33,7 +35,7 @@ gammfast_non_gaussian_inner_G <- function(
 
 gammfast_non_gaussian_profile <- function(
     family, y, prior_weights, offset, G0, X, B, id, G, eta, sp, scale,
-    covariance_group, group_index, ng, inner_tol, inner_max, nthreads,
+    group_index, ng, inner_tol, inner_max, nthreads,
     pirls_control) {
   mu <- family$linkinv(eta)
   deviance_old <- sum(family$dev.resids(y, mu, prior_weights))
@@ -54,16 +56,18 @@ gammfast_non_gaussian_profile <- function(
     t_correction <- gammfast_t_correction(
       family, y, eta, prior_weights, work$w
     )
+    mean_penalty <- gammfast_penalty_matrix(G0, sp, scale = scale)
     local <- gammfast_non_gaussian_inner_G(
       X = X, B = B, id = id, offset = offset, G = G,
-      work = work, t_correction = t_correction, scale = scale,
-      covariance_group = covariance_group, group_index = group_index,
+      work = work, t_correction = t_correction,
+      mean_penalty = mean_penalty, scale = scale,
+      group_index = group_index,
       ng = ng, inner_tol = inner_tol, inner_max = inner_max,
       nthreads = nthreads
     )
     G <- local$G
-    mode <- gammfast_fixed_mode_cached(
-      G0, X, B, id, local$cache, G, scale, sp, nthreads
+    mode <- gammfast_conditional_mode_cached(
+      G0, local$cache, G, scale, sp, nthreads
     )
     eta_new <- offset + drop(X %*% mode$beta) +
       rowSums(B * mode$u[id, , drop = FALSE])

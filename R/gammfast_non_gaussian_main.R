@@ -2,8 +2,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
                                   X, y, prior_weights, offset, B, id,
                                   id_factor, random_structure, inner.max,
                                   inner.tol, pirls.max, pirls.tol,
-                                  covariance_group, nthreads, control,
-                                  verbose, call) {
+                                  nthreads, control, verbose, call) {
   family <- shell$family
   ng <- nlevels(id_factor)
   eta <- as.numeric(shell$linear.predictors)
@@ -34,9 +33,8 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
   initial_cache <- gammfast_working_cache(
     X, B, id, work, offset, nthreads
   )
-  initial_mode <- gammfast_fixed_mode_cached(
-    G0, X, B, id, initial_cache, G, family_scale,
-    sp_current, nthreads
+  initial_mode <- gammfast_conditional_mode_cached(
+    G0, initial_cache, G, family_scale, sp_current, nthreads
   )
   beta_state <- initial_mode$beta
   u_state <- initial_mode$u
@@ -53,7 +51,6 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
       family = family, y = y, prior_weights = prior_weights,
       offset = offset, G0 = G0, X = X, B = B, id = id, G = G,
       eta = eta, sp = sp_current, scale = family_scale,
-      covariance_group = covariance_group,
       group_index = random_structure$group.index, ng = ng,
       inner_tol = inner.tol, inner_max = inner.max,
       nthreads = nthreads, pirls_control = pirls_control
@@ -125,7 +122,6 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     family = family, y = y, prior_weights = prior_weights,
     offset = offset, G0 = G0, X = X, B = B, id = id, G = G,
     eta = eta, sp = sp_current, scale = family_scale,
-    covariance_group = covariance_group,
     group_index = random_structure$group.index, ng = ng,
     inner_tol = inner.tol, inner_max = inner.max,
     nthreads = nthreads, pirls_control = pirls_control
@@ -179,7 +175,7 @@ gammfast_non_gaussian <- function(formula, global_formula, shell, G0, Sl,
     } else {
       "family-fixed"
     },
-    covariance.method = "cached-ordinary-X-Laplace-influence-fixedpoint",
+    covariance.method = "cached-penalized-X-Laplace-influence-fixedpoint",
     optimization.method = "profiled-PIRLS-G-blockwise-fREML",
     sp = sp_current, fitted.values = mu, linear.predictors = eta,
     global.fitted = eta_global, random.fitted = eta_random,

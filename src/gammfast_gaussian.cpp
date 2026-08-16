@@ -47,8 +47,7 @@ List gammfast_gaussian_cache(const arma::mat& A,
   return List::create(
     _["AtA"] = AtA,
     _["BtB"] = BtB,
-    _["BtA"] = BtA,
-    _["n_group"] = ng
+    _["BtA"] = BtA
   );
 }
 
@@ -98,8 +97,7 @@ List gammfast_gaussian_projected_cached(const arma::mat& AtA,
                                         const arma::cube& BtA,
                                         const arma::mat& G,
                                         double sigma2,
-                                        const arma::ivec& covariance_group,
-                                        bool fisher = false) {
+                                        const arma::mat& mean_penalty) {
   const int q = G.n_rows;
   const int ng = BtB.n_slices;
   const int p = AtA.n_rows - 1;
@@ -112,29 +110,23 @@ List gammfast_gaussian_projected_cached(const arma::mat& AtA,
       BtA.n_rows != static_cast<arma::uword>(q) ||
       BtA.n_cols != static_cast<arma::uword>(p + 1) ||
       BtA.n_slices != static_cast<arma::uword>(ng) ||
-      covariance_group.n_elem != static_cast<arma::uword>(q)) {
+      mean_penalty.n_rows != static_cast<arma::uword>(p) ||
+      mean_penalty.n_cols != static_cast<arma::uword>(p)) {
     stop("Cached projected-moment dimensions are inconsistent.");
+  }
+  if (!mean_penalty.is_finite()) {
+    stop("The cached mean penalty must be finite.");
   }
   if (!R_finite(sigma2) || sigma2 <= 0) {
     stop("sigma2 must be positive and finite.");
   }
-  if (covariance_group.min() < 1) {
-    stop("covariance_group must contain positive consecutive integers.");
-  }
-  const int n_covariance_group = covariance_group.max();
-  for (int j = 1; j <= n_covariance_group; ++j) {
-    arma::uvec jj = arma::find(covariance_group == j);
-    if (jj.n_elem == 0 || jj.max() - jj.min() + 1 != jj.n_elem) {
-      stop("covariance_group must define non-empty contiguous blocks.");
-    }
-  }
-
   arma::mat Ginv;
   if (!arma::inv_sympd(Ginv, arma::symmatu(G))) {
     stop("G must be positive definite.");
   }
   const double root_sigma = std::sqrt(sigma2);
-  arma::mat H = AtA.submat(0, 0, p - 1, p - 1) / sigma2;
+  arma::mat H = AtA.submat(0, 0, p - 1, p - 1) / sigma2 +
+    arma::symmatu(mean_penalty);
   arma::vec h = AtA.submat(0, p, p - 1, p) / sigma2;
   arma::cube D(q, q, ng, arma::fill::zeros);
   arma::cube L(q, p, ng, arma::fill::zeros);
@@ -164,167 +156,20 @@ List gammfast_gaussian_projected_cached(const arma::mat& AtA,
     stop("The cached fixed-effect covariance was not positive definite.");
   }
   arma::mat u(ng, q, arma::fill::zeros);
-  arma::mat tmat(ng, q, arma::fill::zeros);
   arma::mat moment_sum(q, q, arma::fill::zeros);
-  arma::mat Csum(q, q, arma::fill::zeros);
-  arma::cube C(q, q, ng, arma::fill::zeros);
-  arma::cube U(q, p, ng, arma::fill::zeros);
   for (int i = 0; i < ng; ++i) {
     const arma::vec ti = v.col(i) - L.slice(i) * beta;
-    U.slice(i) = L.slice(i) * Hroot;
-    const arma::mat Ki = U.slice(i) * U.slice(i).t();
-    C.slice(i) = arma::symmatu(R.slice(i) - Ki);
+    const arma::mat Ui = L.slice(i) * Hroot;
+    const arma::mat Ci = arma::symmatu(R.slice(i) - Ui * Ui.t());
     const arma::vec ui = G * ti;
-    const arma::mat posterior = arma::symmatu(G - G * C.slice(i) * G);
-    tmat.row(i) = ti.t();
+    const arma::mat posterior = arma::symmatu(G - G * Ci * G);
     u.row(i) = ui.t();
     moment_sum += ui * ui.t() + posterior;
-    Csum += C.slice(i);
-  }
-  arma::vec theta;
-  arma::vec score;
-  arma::mat information;
-  arma::ivec information_group;
-  if (fisher) {
-    struct Derivative {
-      arma::uvec coordinates;
-      arma::mat value;
-      int information_group;
-    };
-    std::vector<Derivative> derivative;
-    std::vector<double> theta_value;
-    std::vector<int> information_value;
-    int fs_information_group = 1;
-    for (int g = 1; g <= n_covariance_group; ++g) {
-      arma::uvec jj = arma::find(covariance_group == g);
-      const int d = jj.n_elem;
-      arma::mat Gg = G.submat(jj, jj);
-      arma::mat Lg;
-      if (!arma::chol(Lg, arma::symmatu(Gg), "lower")) {
-        stop("A covariance block was not positive definite.");
-      }
-      const int info_g = d == 1 ? 0 : fs_information_group++;
-      for (int a = 0; a < d; ++a) {
-        for (int b = 0; b <= a; ++b) {
-          arma::mat dL(d, d, arma::fill::zeros);
-          if (a == b) {
-            theta_value.push_back(std::log(Lg(a, a)));
-            dL(a, a) = Lg(a, a);
-          } else {
-            theta_value.push_back(Lg(a, b));
-            dL(a, b) = 1.0;
-          }
-          Derivative item;
-          item.coordinates = jj;
-          item.value = dL * Lg.t() + Lg * dL.t();
-          item.information_group = info_g;
-          derivative.push_back(item);
-          information_value.push_back(info_g + 1);
-        }
-      }
-    }
-    const int m = derivative.size();
-    theta.set_size(m);
-    score.zeros(m);
-    information.zeros(m, m);
-    information_group.set_size(m);
-    for (int j = 0; j < m; ++j) {
-      theta[j] = theta_value[j];
-      information_group[j] = information_value[j];
-      const arma::uvec& jj = derivative[j].coordinates;
-      const arma::mat& E = derivative[j].value;
-      for (int i = 0; i < ng; ++i) {
-        const arma::vec ti = tmat.row(i).t();
-        const arma::vec tb = ti.elem(jj);
-        score[j] += 0.5 * (
-          arma::as_scalar(tb.t() * E * tb) -
-          arma::trace(C.slice(i).submat(jj, jj) * E)
-        );
-      }
-    }
-
-    for (int info_g = 0; info_g < fs_information_group; ++info_g) {
-      std::vector<int> pars;
-      for (int j = 0; j < m; ++j) {
-        if (derivative[j].information_group == info_g) pars.push_back(j);
-      }
-      if (pars.empty()) continue;
-      arma::uvec coords;
-      if (info_g == 0) {
-        std::vector<arma::uword> scalar_coords;
-        for (int g = 1; g <= n_covariance_group; ++g) {
-          arma::uvec jj = arma::find(covariance_group == g);
-          if (jj.n_elem == 1) scalar_coords.push_back(jj[0]);
-        }
-        coords = arma::uvec(scalar_coords);
-      } else {
-        coords = derivative[pars[0]].coordinates;
-      }
-      const int d = coords.n_elem;
-      const int mb = pars.size();
-      std::vector<arma::mat> Eb(mb, arma::mat(d, d, arma::fill::zeros));
-      for (int a = 0; a < mb; ++a) {
-        const int j = pars[a];
-        if (info_g == 0) {
-          const arma::uword coordinate = derivative[j].coordinates[0];
-          const arma::uvec location = arma::find(coords == coordinate);
-          Eb[a](location[0], location[0]) = derivative[j].value(0, 0);
-        } else {
-          Eb[a] = derivative[j].value;
-        }
-      }
-      std::vector<arma::mat> Atilde(
-        mb, arma::mat(p, p, arma::fill::zeros)
-      );
-      arma::mat local(mb, mb, arma::fill::zeros);
-      for (int i = 0; i < ng; ++i) {
-        const arma::mat Rb = R.slice(i).submat(coords, coords);
-        const arma::mat Ub = U.slice(i).rows(coords);
-        const arma::mat Kb = Ub * Ub.t();
-        for (int a = 0; a < mb; ++a) {
-          Atilde[a] += Ub.t() * Eb[a] * Ub;
-        }
-        if (info_g == 0) {
-          for (int a = 0; a < mb; ++a) {
-            const double ea = Eb[a](a, a);
-            for (int b = 0; b <= a; ++b) {
-              const double eb = Eb[b](b, b);
-              local(a, b) += ea * eb * (
-                Rb(a, b) * Rb(a, b) -
-                2.0 * Rb(a, b) * Kb(a, b)
-              );
-            }
-          }
-        } else {
-          for (int a = 0; a < mb; ++a) {
-            for (int b = 0; b <= a; ++b) {
-              local(a, b) +=
-                arma::trace(Rb * Eb[b] * Rb * Eb[a]) -
-                arma::trace(Rb * Eb[b] * Kb * Eb[a]) -
-                arma::trace(Kb * Eb[b] * Rb * Eb[a]);
-            }
-          }
-        }
-      }
-      for (int a = 0; a < mb; ++a) {
-        for (int b = 0; b <= a; ++b) {
-          const double value = 0.5 * (
-            local(a, b) + arma::accu(Atilde[a] % Atilde[b])
-          );
-          information(pars[a], pars[b]) = value;
-          information(pars[b], pars[a]) = value;
-        }
-      }
-    }
   }
   return List::create(
-    _["beta"] = beta, _["u"] = u, _["t"] = tmat,
+    _["u"] = u,
     _["moment_sum"] = arma::symmatu(moment_sum),
-    _["C_sum"] = arma::symmatu(Csum),
-    _["mean_covariance"] = Hinv,
-    _["theta"] = theta, _["score"] = score,
-    _["information"] = information,
-    _["information_group"] = information_group
+    _["mean_covariance"] = Hinv
   );
 }
 
