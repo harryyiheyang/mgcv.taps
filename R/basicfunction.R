@@ -27,7 +27,8 @@ return(list(DX = DX, DK = DK))
 }
 
 kappa_quantile=function(x,nk){
-n=length(x)
+x <- sort(x)
+n <- length(x)
 quantile(x[2:(n-1)],seq(0,1,length=nk+2))[2:(nk+1)]
 }
 
